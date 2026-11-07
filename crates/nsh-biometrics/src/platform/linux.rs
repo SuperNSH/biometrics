@@ -4,7 +4,7 @@
 //! polkit does not say whether a running authentication agent will answer. A prompt with no agent
 //! fails with `ERR_BIOMETRICS_NOT_AVAILABLE` when it runs, not here.
 
-use zbus::{Connection, zvariant::OwnedObjectPath};
+use zbus::{Connection, OwnedObjectPath};
 use zbus_polkit::policykit1::AuthorityProxy;
 
 use super::robius::{off_engine, start_prompt};
