@@ -76,6 +76,12 @@ impl NativeLocalAuth {
     }
 }
 
+impl Default for NativeLocalAuth {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// The error a rejection carries: its message, and the `code` apps match on.
 fn into_js(error: BiometricsError) -> JsError {
     JsError::Error(error.kind().message().to_owned()).with_code(error.code())
