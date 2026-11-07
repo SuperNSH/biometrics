@@ -4,10 +4,5 @@
   "version": "0.1.0",
   "build": 1,
   "rust": "../../crates/nsh-biometrics",
-  "ios": {
-    "infoPlist": {
-      "NSFaceIDUsageDescription": "Unlock your notes with Face ID."
-    }
-  },
   "capabilities": {}
 }
