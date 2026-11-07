@@ -64,6 +64,10 @@ The web has no secret store or biometric prompt the page can call. `authenticate
 
 The wasm-bindgen version is pinned to `=0.2.129`, the one NSH 0.4.0 runs, as `nsh-secure-storage` does.
 
+## iOS needs an Info.plist key, and NSH 0.4.0 cannot set it
+
+Apple requires `NSFaceIDUsageDescription` for Face ID. The brief asks the docs to say how to add it with NSH. NSH's main branch takes `ios.infoPlist` in `nsh.json`, but the released 0.4.0 CLI, which CI installs, rejects an `ios` key with `unknown field ios`. The demo therefore has no such key. The README says so, and the key goes in once an NSH release accepts it. A library cannot write an app's `Info.plist` itself.
+
 ## Options a platform cannot apply are accepted
 
 The brief lists `negative_button`, `fallback_title` and `cancel_title`, and robius-authentication takes none of them. They are accepted and passed through, and the platform shows its own text. `sensitive_transaction`, `sticky_auth` and `useErrorDialogs` are accepted for the same reason. Each is marked in `parity.md`.
