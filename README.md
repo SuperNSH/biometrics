@@ -116,7 +116,7 @@ CI runs on every push to `master` and on pull requests. Every job runs on GitHub
 - **Rust** on Linux, macOS and Windows: Clippy with `-D warnings` over all targets, then the test suite. The tests use the fake backend and NSH's headless engine.
 - **Cross-check** for iOS, the iOS simulator, Android and wasm: Clippy for each target, which compiles each platform's code.
 - **TypeScript**: `nsh check`, `nsh build` with no warnings, and `nsh test` for the package.
-- **Demo**, on `master` only: `examples/demo` is packaged for macOS, the iOS simulator, Linux, Android, the web and Windows, and the `latest` release is replaced with those builds.
+- **Demo**, on `master` only: `examples/demo` is packaged for macOS, Linux and Windows, each on both x86_64 and arm64, plus the iOS simulator, Android and the web, and the `latest` release is replaced with those builds.
 
 CI does **not**:
 

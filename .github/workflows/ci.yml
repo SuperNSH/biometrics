@@ -109,7 +109,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install NSH
-        if: runner.os != 'Windows'
+        if: matrix.nsh == 'release' && runner.os != 'Windows'
         env:
           NSH_VERSION: v0.4.0
         run: |
@@ -117,7 +117,7 @@ jobs:
           echo "$HOME/.nsh/bin" >> "$GITHUB_PATH"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Install NSH
-        if: runner.os == 'Windows'
+        if: matrix.nsh == 'release' && runner.os == 'Windows'
         shell: pwsh
         env:
           NSH_VERSION: v0.4.0
@@ -133,7 +133,7 @@ jobs:
           nsh test
 
   demo:
-    name: demo (${{ matrix.target }})
+    name: demo (${{ matrix.name }})
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     needs: [format, rust, typescript]
     runs-on: ${{ matrix.os }}
@@ -142,12 +142,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: macos-latest, target: macos }
-          - { os: macos-latest, target: ios-simulator }
-          - { os: ubuntu-latest, target: linux }
-          - { os: ubuntu-latest, target: android }
-          - { os: ubuntu-latest, target: web }
-          - { os: windows-latest, target: windows }
+          # Desktop builds come out for the runner's own processor, so each architecture gets its own runner.
+          # NSH 0.4.0 ships prebuilt CLIs only for macOS arm64, Linux x86_64 and Windows x86_64;
+          # the other three build NSH's CLI from its v0.4.0 source (nsh: source).
+          - { os: macos-latest, target: macos, name: macos-arm64, nsh: release }
+          - { os: macos-15-intel, target: macos, name: macos-x86_64, nsh: source }
+          - { os: ubuntu-latest, target: linux, name: linux-x86_64, nsh: release }
+          - { os: ubuntu-24.04-arm, target: linux, name: linux-arm64, nsh: source }
+          - { os: windows-latest, target: windows, name: windows-x86_64, nsh: release }
+          - { os: windows-11-arm, target: windows, name: windows-arm64, nsh: source }
+          - { os: macos-latest, target: ios-simulator, name: ios-simulator, nsh: release }
+          - { os: ubuntu-latest, target: android, name: android, nsh: release }
+          - { os: ubuntu-latest, target: web, name: web, nsh: release }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
@@ -158,8 +164,8 @@ jobs:
         with:
           version: v2.0.0
           cache-dir: ${{ runner.temp }}/kache
-          manifest-key: demo-${{ matrix.target }}
-          cache-key-prefix: kache-demo-${{ matrix.target }}
+          manifest-key: demo-${{ matrix.name }}
+          cache-key-prefix: kache-demo-${{ matrix.name }}
           save-cache: ${{ github.ref == 'refs/heads/master' }}
           pr-comment: false
       - name: Install the wasm-bindgen CLI that NSH's web runtime needs
@@ -171,7 +177,7 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y $LINUX_PACKAGES
       - name: Install NSH
-        if: runner.os != 'Windows'
+        if: matrix.nsh == 'release' && runner.os != 'Windows'
         env:
           NSH_VERSION: v0.4.0
         run: |
@@ -179,13 +185,18 @@ jobs:
           echo "$HOME/.nsh/bin" >> "$GITHUB_PATH"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Install NSH
-        if: runner.os == 'Windows'
+        if: matrix.nsh == 'release' && runner.os == 'Windows'
         shell: pwsh
         env:
           NSH_VERSION: v0.4.0
         run: |
           irm https://nsh.dev/install.ps1 | iex
           "$env:LOCALAPPDATA\nsh\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+      - name: Build NSH's CLI from its v0.4.0 source
+        if: matrix.nsh == 'source'
+        shell: bash
+        # The demo lists a Rust crate, so `nsh package` builds the app's own runner with Cargo and needs no prebuilt runtime.
+        run: cargo install --locked --git https://github.com/longbridge/nsh --tag v0.4.0 nsh-cli
       - name: Work around NSH 0.4.0's crates.io packaging of nsh-platform-ios
         if: matrix.target == 'ios-simulator'
         # The published crate includes a file it does not ship, so build NSH's crates from its v0.4.0 source.
@@ -210,7 +221,7 @@ jobs:
         run: |
           mkdir -p dist
           cd "$RUNNER_TEMP/out"
-          name="biometrics-demo-${{ matrix.target }}"
+          name="biometrics-demo-${{ matrix.name }}"
           case "${{ matrix.target }}" in
             android) cp ./*.apk "$GITHUB_WORKSPACE/dist/$name.apk" ;;
             linux) cp ./*.tar.gz "$GITHUB_WORKSPACE/dist/$name.tar.gz" ;;
@@ -221,7 +232,7 @@ jobs:
           ls -la "$GITHUB_WORKSPACE/dist"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: demo-${{ matrix.target }}
+          name: demo-${{ matrix.name }}
           path: dist/*
           if-no-files-found: error
 
