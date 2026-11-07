@@ -13,8 +13,34 @@ path = "src/lib.rs"
 
 [dependencies]
 nsh-core = "0.4.0"
+robius-authentication = "0.3.1"
 thiserror = "2.0.21"
 tokio = { version = "1.54.1", default-features = false, features = ["sync"] }
+
+# Apple: LocalAuthentication answers availability; robius-authentication shows the prompt.
+[target.'cfg(target_vendor = "apple")'.dependencies]
+objc2-local-authentication = { version = "0.3.2", default-features = false, features = ["std", "LAContext", "LABiometryType"] }
+
+# Android: BiometricManager over JNI. ndk-context carries the VM and an application to robius.
+[target.'cfg(target_os = "android")'.dependencies]
+jni = "0.22.4"
+ndk-context = "0.1.1"
+libc = "0.2.191"
+
+# Windows: Windows Hello through UserConsentVerifier.
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.62.2", features = ["Security_Credentials_UI", "Win32_System_WinRT"] }
+
+# Linux: polkit and fprintd over D-Bus.
+[target.'cfg(target_os = "linux")'.dependencies]
+zbus = "6.2.1"
+zbus_polkit = "6.0.0"
+
+# The web: the WebAuthn check through the page's own globals. The wasm-bindgen version is the one NSH 0.4.0 links.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "=0.2.129"
+wasm-bindgen-futures = "0.4.79"
+js-sys = "0.3.106"
 
 [dev-dependencies]
 nsh-engine = { version = "0.4.0", default-features = false }

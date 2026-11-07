@@ -6,9 +6,9 @@ use crate::{
     options::{AuthOptions, BiometricType},
 };
 
-pub(crate) struct Unsupported;
+pub(crate) struct NativeBackend;
 
-impl Backend for Unsupported {
+impl Backend for NativeBackend {
     fn is_device_supported(&self) -> BackendFuture<'_, Result<bool, BiometricsError>> {
         Box::pin(std::future::ready(Ok::<bool, BiometricsError>(false)))
     }
