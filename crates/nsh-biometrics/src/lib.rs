@@ -9,8 +9,11 @@ mod availability;
 mod backend;
 mod error;
 mod fake;
+mod native;
 mod options;
 mod platform;
+
+use nsh_core::prelude::*;
 
 pub use auth::LocalAuth;
 pub use availability::{
@@ -20,4 +23,11 @@ pub use availability::{
 pub use backend::{Backend, BackendFuture, PromptDone};
 pub use error::{BiometricsError, ErrorKind};
 pub use fake::FakeBackend;
+pub use native::{NativeAuthOptions, NativeLocalAuth};
 pub use options::{AuthOptions, BiometricStrength, BiometricType};
+
+/// The crate's UI set: what TSX imports from `nsh-biometrics/native`.
+#[native_module("nsh-biometrics/native")]
+fn native(registry: &mut Registry) {
+    registry.class::<NativeLocalAuth>();
+}
