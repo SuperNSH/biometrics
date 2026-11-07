@@ -214,15 +214,15 @@ fn an_empty_reason_is_refused_without_a_prompt() {
     });
 }
 
+// `AuthOptions` is non-exhaustive, so a test outside the crate sets its fields one by one.
 #[test]
+#[allow(clippy::field_reassign_with_default)]
 fn the_reason_and_the_polkit_action_reach_the_backend() {
     let fake = FakeBackend::new();
     let auth = LocalAuth::with_backend(fake.clone());
     run(async {
-        let options = AuthOptions {
-            polkit_action_id: Some("com.example.unlock".to_owned()),
-            ..AuthOptions::default()
-        };
+        let mut options = AuthOptions::default();
+        options.polkit_action_id = Some("com.example.unlock".to_owned());
         let call = {
             let auth = auth.clone();
             tokio::spawn(async move { auth.authenticate("Open the vault", &options).await })
