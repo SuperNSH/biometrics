@@ -1,6 +1,11 @@
 import { expect, test } from "nsh/test";
 import { LocalAuth, asBiometricsError, memoryBackend, type BiometricsErrorCode } from "../src";
 
+/** Lets the answer of a finished backend call reach the gate, which frees itself a microtask later. */
+async function delivered(): Promise<void> {
+  for (let turn = 0; turn < 4; turn += 1) await Promise.resolve();
+}
+
 const CODES: BiometricsErrorCode[] = [
   "ERR_BIOMETRICS_NOT_AVAILABLE",
   "ERR_BIOMETRICS_NOT_ENROLLED",
@@ -48,6 +53,7 @@ test("stop resolves the call as cancelled, and a late answer is ignored", async 
     code: "ERR_BIOMETRICS_IN_PROGRESS",
   });
   backend.finishPrompt(true);
+  await delivered();
   const next = auth.authenticate({ localizedReason: "Next" });
   backend.finishPrompt(true);
   expect(await next).toBe(true);
@@ -75,6 +81,7 @@ test("every code reaches the caller as its code", async () => {
     const call = auth.authenticate({ localizedReason: "Unlock" });
     backend.finishPrompt(code);
     await expect(call).rejects.toMatchObject({ code });
+    await delivered();
   }
 });
 

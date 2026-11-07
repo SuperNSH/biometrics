@@ -44,6 +44,12 @@ pub struct AuthOptions {
     pub subtitle: Option<String>,
     /// The Android strength class. Defaults to strong.
     pub biometric_strength: Option<BiometricStrength>,
+    /// The Android prompt's negative button. Accepted; robius-authentication shows the system's own Cancel.
+    pub negative_button: Option<String>,
+    /// Apple's password fallback button. Accepted; robius-authentication shows the system's own.
+    pub fallback_title: Option<String>,
+    /// Apple's cancel button. Accepted; robius-authentication shows the system's own.
+    pub cancel_title: Option<String>,
     /// The polkit action that Linux checks, as the policy file names it. Required on Linux.
     pub polkit_action_id: Option<String>,
 }

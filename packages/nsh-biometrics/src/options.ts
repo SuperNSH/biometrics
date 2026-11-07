@@ -18,6 +18,12 @@ export interface AuthOptions {
   title?: string;
   /** The Android prompt's subtitle. */
   subtitle?: string;
+  /** The Android prompt's negative button. Accepted; the system's own Cancel is shown. */
+  negativeButton?: string;
+  /** Apple's password fallback button. Accepted; the system's own is shown. */
+  fallbackTitle?: string;
+  /** Apple's cancel button. Accepted; the system's own is shown. */
+  cancelTitle?: string;
   /** The Android strength class. Defaults to strong. */
   biometricStrength?: BiometricStrength;
   /** The polkit action to check on Linux. Required there. */

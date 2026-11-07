@@ -19,6 +19,9 @@ function nativeOptions(options: AuthOptions): NativeAuthOptions {
   if (options.stickyAuth !== undefined) result.stickyAuth = options.stickyAuth;
   if (options.title !== undefined) result.title = options.title;
   if (options.subtitle !== undefined) result.subtitle = options.subtitle;
+  if (options.negativeButton !== undefined) result.negativeButton = options.negativeButton;
+  if (options.fallbackTitle !== undefined) result.fallbackTitle = options.fallbackTitle;
+  if (options.cancelTitle !== undefined) result.cancelTitle = options.cancelTitle;
   if (options.biometricStrength !== undefined) result.biometricStrength = options.biometricStrength;
   if (options.polkitActionId !== undefined) result.polkitActionId = options.polkitActionId;
   return result;

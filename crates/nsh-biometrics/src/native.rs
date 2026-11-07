@@ -18,6 +18,12 @@ pub struct NativeAuthOptions {
     pub title: Option<String>,
     /// The Android prompt's subtitle.
     pub subtitle: Option<String>,
+    /// The Android prompt's negative button. Accepted; no effect (see `docs/parity.md`).
+    pub negative_button: Option<String>,
+    /// Apple's password fallback button. Accepted; no effect (see `docs/parity.md`).
+    pub fallback_title: Option<String>,
+    /// Apple's cancel button. Accepted; no effect (see `docs/parity.md`).
+    pub cancel_title: Option<String>,
     /// `"strong"` or `"weak"`. Android only.
     pub biometric_strength: Option<String>,
     /// The polkit action to check on Linux. Required there.
@@ -116,6 +122,9 @@ fn to_auth_options(options: NativeAuthOptions) -> Result<AuthOptions, JsError> {
         sticky_auth: options.sticky_auth.unwrap_or(false),
         title: options.title,
         subtitle: options.subtitle,
+        negative_button: options.negative_button,
+        fallback_title: options.fallback_title,
+        cancel_title: options.cancel_title,
         biometric_strength,
         polkit_action_id: options.polkit_action_id,
     })

@@ -3,11 +3,16 @@ import { type AvailabilityState, LocalAuth, memoryBackend, useBiometricAvailabil
 
 /** How many times the device support was read. A signal, so the screen shows it. */
 const reads = signal(0);
+// Counted outside the signal: reading it in the check would subscribe the check's effect to it.
+let readCount = 0;
 const backend = memoryBackend({
   deviceSupported: true,
   canCheckBiometrics: true,
   biometrics: ["face"],
-  onSupportRead: () => reads.set(reads() + 1),
+  onSupportRead: () => {
+    readCount += 1;
+    reads.set(readCount);
+  },
 });
 const auth = new LocalAuth({ backend });
 
