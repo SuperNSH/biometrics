@@ -1,0 +1,11 @@
+[package]
+name = "nsh-biometrics"
+description = "Biometric and device-credential authentication for Native Shell apps: Face ID, Touch ID, Android biometrics, Windows Hello and polkit"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+nsh-core = "0.4.0"

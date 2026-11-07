@@ -1,0 +1,6 @@
+target/
+.nsh/
+node_modules/
+.DS_Store
+*.secret
+*.keychain-db
