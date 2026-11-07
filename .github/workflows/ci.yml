@@ -109,20 +109,20 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install NSH
-        if: matrix.nsh != 'source' && runner.os != 'Windows'
+        if: runner.os != 'Windows'
         env:
           NSH_VERSION: v0.4.0
         run: |
-          curl -fsSL https://nsh.dev/install.sh | sh
+          curl -fsSL https://raw.githubusercontent.com/SuperNSH/nsh-builds/master/install.sh | sh
           echo "$HOME/.nsh/bin" >> "$GITHUB_PATH"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Install NSH
-        if: matrix.nsh != 'source' && runner.os == 'Windows'
+        if: runner.os == 'Windows'
         shell: pwsh
         env:
           NSH_VERSION: v0.4.0
         run: |
-          irm https://nsh.dev/install.ps1 | iex
+          irm https://raw.githubusercontent.com/SuperNSH/nsh-builds/master/install.ps1 | iex
           "$env:LOCALAPPDATA\nsh\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
       - name: Check, build and test
         working-directory: packages/nsh-biometrics
@@ -143,17 +143,17 @@ jobs:
       matrix:
         include:
           # Desktop builds come out for the runner's own processor, so each architecture gets its own runner.
-          # NSH 0.4.0 ships prebuilt CLIs only for macOS arm64, Linux x86_64 and Windows x86_64;
-          # the other three build NSH's CLI from its v0.4.0 source (nsh: source).
-          - { os: macos-latest, target: macos, name: macos-arm64, nsh: release }
-          - { os: macos-15-intel, target: macos, name: macos-x86_64, nsh: source }
-          - { os: ubuntu-latest, target: linux, name: linux-x86_64, nsh: release }
-          - { os: ubuntu-24.04-arm, target: linux, name: linux-arm64, nsh: source }
-          - { os: windows-latest, target: windows, name: windows-x86_64, nsh: release }
-          - { os: windows-11-arm, target: windows, name: windows-arm64, nsh: source }
-          - { os: macos-latest, target: ios-simulator, name: ios-simulator, nsh: release }
-          - { os: ubuntu-latest, target: android, name: android, nsh: release }
-          - { os: ubuntu-latest, target: web, name: web, nsh: release }
+          # NSH installs from SuperNSH/nsh-builds' installer: NSH's own release where it has one
+          # (macOS arm64, Linux x86_64, Windows x86_64), SuperNSH/nsh-builds' build of it otherwise.
+          - { os: macos-latest, target: macos, name: macos-arm64 }
+          - { os: macos-15-intel, target: macos, name: macos-x86_64 }
+          - { os: ubuntu-latest, target: linux, name: linux-x86_64 }
+          - { os: ubuntu-24.04-arm, target: linux, name: linux-arm64 }
+          - { os: windows-latest, target: windows, name: windows-x86_64 }
+          - { os: windows-11-arm, target: windows, name: windows-arm64 }
+          - { os: macos-latest, target: ios-simulator, name: ios-simulator }
+          - { os: ubuntu-latest, target: android, name: android }
+          - { os: ubuntu-latest, target: web, name: web }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
@@ -177,26 +177,21 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y $LINUX_PACKAGES
       - name: Install NSH
-        if: matrix.nsh != 'source' && runner.os != 'Windows'
+        if: runner.os != 'Windows'
         env:
           NSH_VERSION: v0.4.0
         run: |
-          curl -fsSL https://nsh.dev/install.sh | sh
+          curl -fsSL https://raw.githubusercontent.com/SuperNSH/nsh-builds/master/install.sh | sh
           echo "$HOME/.nsh/bin" >> "$GITHUB_PATH"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Install NSH
-        if: matrix.nsh != 'source' && runner.os == 'Windows'
+        if: runner.os == 'Windows'
         shell: pwsh
         env:
           NSH_VERSION: v0.4.0
         run: |
-          irm https://nsh.dev/install.ps1 | iex
+          irm https://raw.githubusercontent.com/SuperNSH/nsh-builds/master/install.ps1 | iex
           "$env:LOCALAPPDATA\nsh\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
-      - name: Build NSH's CLI from its v0.4.0 source
-        if: matrix.nsh == 'source'
-        shell: bash
-        # The demo lists a Rust crate, so `nsh package` builds the app's own runner with Cargo and needs no prebuilt runtime.
-        run: cargo install --locked --git https://github.com/longbridge/nsh --tag v0.4.0 nsh-cli
       - name: Work around NSH 0.4.0's crates.io packaging of nsh-platform-ios
         if: matrix.target == 'ios-simulator'
         # The published crate includes a file it does not ship, so build NSH's crates from its v0.4.0 source.
