@@ -8,7 +8,8 @@ use nsh_core::prelude::*;
 use crate::{auth::LocalAuth, error::BiometricsError, options::BiometricType};
 
 /// What the device can do for authentication right now.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Availability {
     /// A secure lock screen or biometrics exist.
     pub device_supported: bool,
