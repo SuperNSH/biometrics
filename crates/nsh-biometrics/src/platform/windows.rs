@@ -22,7 +22,7 @@ fn availability() -> Result<UserConsentVerifierAvailability, BiometricsError> {
     // SAFETY: WinRT's initializer for this thread. An error means the thread is already set up in another mode, which is fine.
     let _ = unsafe { RoInitialize(RO_INIT_MULTITHREADED) };
     let operation = UserConsentVerifier::CheckAvailabilityAsync().map_err(windows_error)?;
-    operation.get().map_err(windows_error)
+    operation.join().map_err(windows_error)
 }
 
 fn windows_error(error: windows::core::Error) -> BiometricsError {

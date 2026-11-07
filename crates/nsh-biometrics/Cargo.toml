@@ -30,8 +30,8 @@ libc = "0.2.191"
 # Windows: Windows Hello through UserConsentVerifier.
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.62.2", features = ["Security_Credentials_UI", "Win32_System_WinRT"] }
-# `IAsyncOperation::get` blocks on the result, and windows-future provides it only with `std`.
-windows-future = { version = "0.2.1", features = ["std"] }
+# `IAsyncOperation::join` blocks on the result. windows 0.62 uses windows-future 0.3.2, which needs `std` for it.
+windows-future = { version = "0.3.2", features = ["std"] }
 
 # Linux: polkit and fprintd over D-Bus.
 [target.'cfg(target_os = "linux")'.dependencies]
