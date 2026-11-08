@@ -88,11 +88,15 @@ mount(App);
 
 Limits:
 
-- **Cancel does not dismiss the system prompt.** robius-authentication has no cancel. `stopAuthentication` and a dropped call resolve at once with `ERR_BIOMETRICS_CANCELLED`, but the system prompt stays until the user answers it. A new call gets `ERR_BIOMETRICS_IN_PROGRESS` until then.
+- **Cancel does not dismiss the system prompt.** robius-authentication has no cancel. `stopAuthentication` and a dropped call resolve at once with `ERR_BIOMETRICS_CANCELLED`, but the system prompt stays until the user answers it. A new call gets `ERR_BIOMETRICS_IN_PROGRESS` until then. A `timeout` is the one exception: it force-frees the gate.
+- **A `timeout` frees the gate but not the screen.** `timeout` on `AuthOptions` (`timeout` in TSX) resolves the call with `ERR_BIOMETRICS_TIMEOUT` when the duration passes, and the gate frees for the next call. The first prompt is still on screen, so a newer prompt can stack over it. That trade is why it is off by default.
 - **Android needs the permission, and NSH cannot add it.** `android.permission.USE_BIOMETRIC` must be in the generated manifest. NSH 0.4.0 declares only `INTERNET`, plus `POST_NOTIFICATIONS` for the `notifications` capability, and no setting adds other permissions. Until NSH offers one, a prompt on Android fails with `ERR_BIOMETRICS_BACKEND`.
 - **iOS Face ID needs an `Info.plist` key that NSH 0.4.0 cannot set.** See the TSX section above.
 - **Some options are accepted and not applied.** `sensitiveTransaction`, `stickyAuth`, the Android negative button, and Apple's fallback and cancel titles. `docs/parity.md` lists them.
 - **Permanent lockout is reported as a lockout.** `ERR_BIOMETRICS_PERMANENTLY_LOCKED_OUT` exists, but robius-authentication does not report that state separately.
+- **On the web, `canCheckBiometrics` can be true while `authenticate` always fails.** The availability check asks WebAuthn whether the device has a platform authenticator; the library has no web prompt, and `authenticate` rejects with `ERR_BIOMETRICS_NOT_AVAILABLE`. WebAuthn is the web's way to ask for verification, so an app must special-case the web.
+- **Windows reports `["strong"]`, not a sensor list.** With Windows Hello available, `getAvailableBiometrics` reports `["strong"]` even on a PIN-only device: `UserConsentVerifier` gives one answer for the device and cannot say which sensors back it. An app must not render 'fingerprint or face available' from it.
+- **NSH 0.4.0's web runtime has no `lifecycle` accessor.** A TS import of `lifecycle` from `"nsh"` stays `undefined` there, so `useBiometricAvailability` treats it as active: the first check runs, the foreground re-check does not. An NSH release with the accessor restores it.
 
 ## The crates it reuses, and why
 
@@ -101,7 +105,7 @@ Limits:
 - [`jni`](https://crates.io/crates/jni) 0.22.4 and [`ndk-context`](https://crates.io/crates/ndk-context) 0.1.1 make the Android availability calls over JNI, and provide the VM and application context that robius reads.
 - [`windows`](https://crates.io/crates/windows) 0.62.2 makes the Windows Hello availability call.
 - [`zbus`](https://crates.io/crates/zbus) 6.2.1 and [`zbus_polkit`](https://crates.io/crates/zbus_polkit) 6.0.0 make the polkit and fprintd queries over D-Bus.
-- [`tokio`](https://crates.io/crates/tokio), with only its `sync` feature, provides the one-shot channel that resolves a call.
+- [`tokio`](https://crates.io/crates/tokio), with its `sync` and `time` features, provides the one-shot channel that resolves a call and the timer behind `timeout`.
 - [`thiserror`](https://crates.io/crates/thiserror) 2.0.21 derives the error's `Display`.
 - `nsh-core`, `nsh-engine` and `nsh-testing` 0.4.0 provide NSH's reactivity, `#[native_module]` and the headless test driver.
 - `wasm-bindgen`, `wasm-bindgen-futures` and `js-sys` make the web check.

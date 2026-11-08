@@ -21,10 +21,11 @@ Rust test names are in `crates/nsh-biometrics/tests/`. TypeScript tests are in `
 | `authenticate(sensitiveTransaction:)` | `AuthOptions::sensitive_transaction` | `sensitiveTransaction` | Accepted. No platform API used here changes its prompt for it | `options and the reason reach the backend` in `auth.test.tsx` |
 | `authenticate(persistAcrossBackgrounding:)` | `AuthOptions::sticky_auth` | `stickyAuth` | Accepted. No platform resumes a prompt for NSH. Flutter's `stickyAuth` maps here | none beyond the field's pass-through |
 | `authenticate(options.useErrorDialogs:)` | not in the API | `useErrorDialogs` (accepted) | Accepted. Flutter always sends `false` for it, so the field is kept only for shape | none |
+| not in `local_auth` | `AuthOptions::timeout` | `timeout` | Done. Opt-in. The call resolves `ERR_BIOMETRICS_TIMEOUT` when the duration passes, and the gate frees, so a newer prompt can stack over the still-visible one. The Rust timer is compiled out on wasm32, where there is no prompt to time out; the TypeScript layer keeps its own watchdog | `a_call_with_a_timeout_resolves_with_the_timeout_code`; "a timeout resolves with the code and the gate recovers" in `auth.test.tsx` |
 | `stopAuthentication()` | `LocalAuth::stop_authentication()` | `LocalAuth.stopAuthentication()` | Partial. The pending call resolves with `ERR_BIOMETRICS_CANCELLED` at once. robius-authentication has no cancel, so the system prompt stays on screen until the user answers it, and a new call gets `ERR_BIOMETRICS_IN_PROGRESS` until then | `stop_resolves_the_call_as_cancelled_and_the_late_answer_is_ignored`; "stop resolves the call as cancelled" in `auth.test.tsx` |
 | `canCheckBiometrics` (getter) | `LocalAuth::can_check_biometrics()` | `LocalAuth.canCheckBiometrics()` | Done per platform: Apple `canEvaluatePolicy` with biometrics; Android `BiometricManager.canAuthenticate`; Windows `UserConsentVerifier`; Linux a fprintd enrolled finger; web the WebAuthn platform check | `the_device_queries_pass_through_the_backend`; the device answer is platform only |
 | `isDeviceSupported()` | `LocalAuth::is_device_supported()` | `LocalAuth.isDeviceSupported()` | Done per platform: Apple `DeviceOwnerAuthentication`; Android `KeyguardManager.isDeviceSecure`; Windows Hello available; Linux polkit's authority answers; web the WebAuthn platform check | `the_device_queries_pass_through_the_backend` |
-| `getAvailableBiometrics()` | `LocalAuth::available_biometrics()` | `LocalAuth.getAvailableBiometrics()` | Partial. Apple reports one kind (Face or Touch ID, or Optic ID as `iris`); Android reports the strength class and the features present; Windows reports `strong` only; Linux `fingerprint`; web nothing, since WebAuthn does not say | `the_device_queries_pass_through_the_backend`; `each_kind_has_the_name_tsx_uses` |
+| `getAvailableBiometrics()` | `LocalAuth::available_biometrics()` | `LocalAuth.getAvailableBiometrics()` | Partial. Apple reports one kind (Face or Touch ID, or Optic ID as `iris`), and only when a biometric is enrolled; Android reports the strength class and the features present; Windows reports `strong` only; Linux `fingerprint`; web nothing, since WebAuthn does not say | `the_device_queries_pass_through_the_backend`; `each_kind_has_the_name_tsx_uses` |
 
 ## `BiometricType`
 
@@ -45,19 +46,19 @@ Flutter reports these as `LocalAuthException` codes. This library reports the co
 | `authInProgress` | `ERR_BIOMETRICS_IN_PROGRESS` | Done | `a_second_prompt_is_refused_while_one_runs` |
 | `uiUnavailable` | `ERR_BIOMETRICS_NO_ACTIVITY` | Done. Android with no running application; Apple and Linux when the system cannot show the UI | `each_robius_error_maps_to_one_code` (`NotInteractive`) |
 | `userCanceled` | `ERR_BIOMETRICS_CANCELLED` | Done | `every_kind_reaches_the_caller_with_its_code` |
-| `timeout` | `ERR_BIOMETRICS_BACKEND` | Partial. robius reports a timeout as `Timeout`, which has no code of its own here | `each_robius_error_maps_to_one_code` |
+| `timeout` | `ERR_BIOMETRICS_TIMEOUT` | Done. robius's `Timeout` carries the code, and the opt-in `timeout` option resolves with it | `each_robius_error_maps_to_one_code` |
 | `systemCanceled` | `ERR_BIOMETRICS_CANCELLED` | Done | `each_robius_error_maps_to_one_code` |
-| `noCredentialsSet` | `ERR_BIOMETRICS_PASSCODE_NOT_SET` | Done | `every_kind_reaches_the_caller_with_its_code` |
+| `noCredentialsSet` | `ERR_BIOMETRICS_PASSCODE_NOT_SET` | Partial. Android folds `NO_DEVICE_CREDENTIAL` into robius's `NotAvailable`, so the library reports `ERR_BIOMETRICS_NOT_AVAILABLE` there. Unfixable without our own Android callback | `every_kind_reaches_the_caller_with_its_code` |
 | `noBiometricsEnrolled` | `ERR_BIOMETRICS_NOT_ENROLLED` | Done | `each_robius_error_maps_to_one_code` (`NotEnrolled`, `NotConfigured`) |
 | `noBiometricHardware` | `ERR_BIOMETRICS_NOT_AVAILABLE` | Done | `each_robius_error_maps_to_one_code` (`Unavailable`) |
 | `biometricHardwareTemporarilyUnavailable` | `ERR_BIOMETRICS_NOT_AVAILABLE` | Done | `each_robius_error_maps_to_one_code` (`Unavailable`) |
 | `temporaryLockout` | `ERR_BIOMETRICS_LOCKED_OUT` | Done | `each_robius_error_maps_to_one_code` (`Exhausted`) |
 | `biometricLockout` | `ERR_BIOMETRICS_PERMANENTLY_LOCKED_OUT` | Partial. robius-authentication maps Android's permanent lockout to `Exhausted`, so the library reports `ERR_BIOMETRICS_LOCKED_OUT` on every platform. The code exists and the fake backend returns it | `every_kind_reaches_the_caller_with_its_code` |
-| `userRequestedFallback` | `ERR_BIOMETRICS_BACKEND` | Partial. Every policy allows the device passcode, so the fallback does not arise, except where robius reports it (`UserFallback`) | `each_robius_error_maps_to_one_code` |
+| `userRequestedFallback` | `ERR_BIOMETRICS_CANCELLED` | Done. Apple's biometric-only case: the user tapped the passcode-fallback button and backed out, which is a user cancel | `each_robius_error_maps_to_one_code` |
 | `deviceError` | `ERR_BIOMETRICS_BACKEND` | Done, with the platform status where robius gives one. robius 0.3.1 gives none on Apple, so `status()` is empty there | `a_platform_status_is_kept_with_its_error` |
 | `unknownError` | `ERR_BIOMETRICS_BACKEND` | Done | `each_robius_error_maps_to_one_code` (`Unknown`) |
 
-The library adds two codes Flutter does not have: `ERR_BIOMETRICS_INVALID_ARGUMENT` (an empty reason, or a Linux call without a polkit action) and `ERR_BIOMETRICS_NOT_AVAILABLE` on the web, which `authenticate` returns, as `docs/brief.md` asks.
+The library adds three codes Flutter does not have: `ERR_BIOMETRICS_INVALID_ARGUMENT` (an empty reason, or a Linux call without a polkit action), `ERR_BIOMETRICS_NOT_AVAILABLE` on the web, which `authenticate` returns, as `docs/brief.md` asks, and `ERR_BIOMETRICS_TIMEOUT`, which the opt-in `timeout` option resolves with.
 
 ## `robius-authentication` 0.3.1 features
 
