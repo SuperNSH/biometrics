@@ -9,8 +9,8 @@ use std::{
 };
 
 use nsh_biometrics::{
-    AvailabilityState, BiometricType, BiometricsError, ErrorKind, FakeBackend, LocalAuth,
-    use_biometric_availability_for,
+    AvailabilityState, BiometricAvailability, BiometricType, BiometricsError, ErrorKind,
+    FakeBackend, LocalAuth, use_biometric_availability_for,
 };
 use nsh_core::{platform::Lifecycle, prelude::*};
 use nsh_engine::{Clock, EngineConfig, Root};
@@ -18,6 +18,8 @@ use nsh_testing::Headless;
 
 static RUNS: AtomicUsize = AtomicUsize::new(0);
 static FAKE: OnceLock<FakeBackend> = OnceLock::new();
+/// The latest read's handle, which outlives its owner once Remove dismissed it.
+static HANDLE: Mutex<Option<BiometricAvailability>> = Mutex::new(None);
 /// The engines share the fake and the counter, so the tests take turns.
 static SERIAL: Mutex<()> = Mutex::new(());
 
@@ -27,8 +29,38 @@ fn fake() -> FakeBackend {
 
 #[component]
 pub fn Probe() -> impl IntoElement {
+    let mounted = signal(true);
+    view()
+        .child(when(mounted, Reader))
+        .child(
+            view()
+                .role(AccessibilityRole::Button)
+                .label("Remove")
+                .on_press(move || mounted.set(false))
+                .child(text("Remove")),
+        )
+        .child(
+            view()
+                .role(AccessibilityRole::Button)
+                .label("Refresh")
+                .on_press(|| {
+                    if let Some(handle) = HANDLE
+                        .lock()
+                        .unwrap_or_else(PoisonError::into_inner)
+                        .as_ref()
+                    {
+                        handle.refresh();
+                    }
+                })
+                .child(text("Refresh")),
+        )
+}
+
+/// The read, made under the `when` region's owner so Remove dismisses it.
+fn Reader() -> impl IntoElement {
     let availability = use_biometric_availability_for(LocalAuth::with_backend(fake()));
-    view().child(text(move || {
+    *HANDLE.lock().unwrap_or_else(PoisonError::into_inner) = Some(availability);
+    text(move || {
         RUNS.fetch_add(1, SeqCst);
         match availability.state() {
             AvailabilityState::Checking => "checking".to_owned(),
@@ -38,7 +70,7 @@ pub fn Probe() -> impl IntoElement {
             ),
             AvailabilityState::Failed(error) => format!("failed {}", error.code()),
         }
-    }))
+    })
 }
 
 fn start() -> Result<Headless, String> {
@@ -55,6 +87,7 @@ fn reset() {
     fake.set_can_check_biometrics(Ok(true));
     fake.set_available_biometrics(Ok(vec![BiometricType::Face]));
     RUNS.store(0, SeqCst);
+    *HANDLE.lock().unwrap_or_else(PoisonError::into_inner) = None;
 }
 
 fn leave_foreground(app: &mut Headless) -> Result<(), String> {
@@ -140,5 +173,28 @@ fn a_failed_check_is_reported_with_its_code() -> Result<(), String> {
     let mut app = start()?;
     app.wait_for("failed ERR_BIOMETRICS_BACKEND")?;
     reset();
+    Ok(())
+}
+
+#[test]
+fn refresh_does_nothing_once_the_owner_is_gone() -> Result<(), String> {
+    let _serial = SERIAL.lock().unwrap_or_else(PoisonError::into_inner);
+    reset();
+    let mut app = start()?;
+    app.wait_for("ready true true [Face]")?;
+
+    // While the owner lives, a refresh reads the device again.
+    let reads = fake().support_reads();
+    app.press("role:button[Refresh]")?;
+    app.run_for(Duration::from_millis(50))?;
+    assert_eq!(fake().support_reads(), reads + 1);
+
+    // The handle outlives Remove, and its refresh must not read.
+    app.press("role:button[Remove]")?;
+    app.run_for(Duration::from_millis(50))?;
+    let after = fake().support_reads();
+    app.press("role:button[Refresh]")?;
+    app.run_for(Duration::from_millis(200))?;
+    assert_eq!(fake().support_reads(), after);
     Ok(())
 }

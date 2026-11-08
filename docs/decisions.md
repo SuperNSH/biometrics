@@ -44,11 +44,7 @@ robius's `Timeout` maps to `ERR_BIOMETRICS_TIMEOUT`, the code the opt-in `timeou
 
 ## Availability is a signal that wakes only on change
 
-`use_biometric_availability()` holds one `Signal<AvailabilityState>`. The signal compares by equality, so a read that gives the same answer does not run a binding again. The read starts when the owner starts and again each time `lifecycle()` becomes `Active`, because enrollment can change in the system settings while the app is away. A new check drops an older one still in flight. The owner going drops the task.
-
-## The web read treats a missing `lifecycle` as active
-
-NSH 0.4.0's web runtime ships no `lifecycle` accessor: the engine declares it under `nsh/device`, but the runtime replaces that namespace with a shorter one, so a TS import of `lifecycle` from `"nsh"` stays `undefined` for the app's whole run. The headless engine has it, which is why `nsh test` passes while the packaged web app crashed at mount. The TypeScript read treats a missing `lifecycle` as `"active"` — the first check still runs; the return-to-foreground re-check is what waits for an NSH release that provides the accessor. The Rust read is unaffected: it reads the engine's own lifecycle, which the web build has.
+`use_biometric_availability()` holds one `Signal<AvailabilityState>`. The signal compares by equality, so a read that gives the same answer does not run a binding again. The read starts when the owner starts and again each time `lifecycle()` becomes `Active`, because enrollment can change in the system settings while the app is away. A new check drops an older one still in flight. The owner going drops the task, and a `refresh` on the handle that escaped it does nothing, on either side of the library.
 
 ## The web read treats a missing `lifecycle` as active
 
@@ -67,6 +63,8 @@ robius has no availability query. The library asks `LAContext.canEvaluatePolicy`
 The brief says to find the current Activity through `ActivityThread` by reflection. The library uses `ActivityThread.currentApplication()` instead. It is a public static method, so it needs no reflection on hidden fields. The framework's `BiometricPrompt` and `BiometricManager` take any `Context`, and the prompt is a system dialog, so it does not need an Activity. If the runtime has not created the application yet, the call reports `ERR_BIOMETRICS_NO_ACTIVITY`.
 
 NSH does not start `ndk-context`, so `ensure_context` finds the VM through `libnativehelper.so` and `JNI_GetCreatedJavaVMs`, as `nsh-secure-storage` does, and installs the context once. `ndk-context` asserts a second initialize, so `ensure_context` adopts an existing context or initializes one (see below).
+
+The prompt start runs on the engine thread, unlike the availability queries, which the blocking pool answers: the `Backend` trait's `start_prompt` is synchronous by design, and robius's Android prompt does all its JNI work in that call. The first prompt of a process also loads robius's dex class, so it can drop frames. Warming the class is not possible from this library; robius keeps it private.
 
 ### ndk-context is adopted when another crate installed one
 

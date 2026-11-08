@@ -1,6 +1,6 @@
 //! The reactive availability read: the answer is a signal that wakes its bindings only when it changes.
 
-use std::rc::Rc;
+use std::{cell::Cell, rc::Rc};
 
 use nsh_core::platform::Lifecycle;
 use nsh_core::prelude::*;
@@ -65,26 +65,40 @@ pub fn use_biometric_availability_for(auth: LocalAuth) -> BiometricAvailability 
     let state = signal(AvailabilityState::Checking);
     // Dropping a task cancels it, so a new check replaces a check still in flight.
     let inflight = stored(None::<Spawned<()>>);
-    let check: Rc<dyn Fn()> = Rc::new(move || {
-        let auth = auth.clone();
-        let task = owner.run(|| {
-            spawn(async move {
-                let answer = match read(&auth).await {
-                    Ok(availability) => AvailabilityState::Ready(availability),
-                    Err(error) => AvailabilityState::Failed(error),
-                };
-                state.set(answer);
-            })
-        });
-        drop(inflight.replace(Some(task)));
-    });
+    // The handle can outlive its owner, and a check then has no owner to land in.
+    let gone = Rc::new(Cell::new(false));
+    let check: Rc<dyn Fn()> = {
+        let gone = Rc::clone(&gone);
+        Rc::new(move || {
+            if gone.get() {
+                return;
+            }
+            let auth = auth.clone();
+            let task = owner.run(|| {
+                spawn(async move {
+                    let answer = match read(&auth).await {
+                        Ok(availability) => AvailabilityState::Ready(availability),
+                        Err(error) => AvailabilityState::Failed(error),
+                    };
+                    state.set(answer);
+                })
+            });
+            drop(inflight.replace(Some(task)));
+        })
+    };
     let on_foreground = check.clone();
     effect(move || {
         if lifecycle() == Lifecycle::Active {
             on_foreground();
         }
     });
-    cleanup(move || drop(inflight.replace(None)));
+    cleanup({
+        let gone = Rc::clone(&gone);
+        move || {
+            gone.set(true);
+            drop(inflight.replace(None));
+        }
+    });
     BiometricAvailability {
         state,
         refresh: stored(check),
