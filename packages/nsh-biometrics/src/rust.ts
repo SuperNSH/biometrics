@@ -24,6 +24,7 @@ function nativeOptions(options: AuthOptions): NativeAuthOptions {
   if (options.cancelTitle !== undefined) result.cancelTitle = options.cancelTitle;
   if (options.biometricStrength !== undefined) result.biometricStrength = options.biometricStrength;
   if (options.polkitActionId !== undefined) result.polkitActionId = options.polkitActionId;
+  if (options.timeoutMs !== undefined) result.timeoutMs = options.timeoutMs;
   return result;
 }
 

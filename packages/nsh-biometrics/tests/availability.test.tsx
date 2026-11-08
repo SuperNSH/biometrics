@@ -17,3 +17,11 @@ test("a binding runs again only when the answer changes", async () => {
   await app.setLifecycle("active");
   await app.waitFor("text:availability supported true enrolled false none runs 3");
 });
+
+test("refresh does nothing after cleanup", async () => {
+  const app = await open("./fixtures/availability.tsx", { clock: {} });
+  await app.waitFor("text:availability supported true enrolled true face runs 2");
+  await app.press("id:unmount");
+  await app.press("id:refresh");
+  expect(app.texts()).toContain("reads 1");
+});

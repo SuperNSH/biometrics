@@ -1,5 +1,11 @@
 import { mount, signal, Text, View } from "nsh";
-import { type AvailabilityState, LocalAuth, memoryBackend, useBiometricAvailability } from "../../src";
+import {
+  type AvailabilityState,
+  type BiometricAvailability,
+  LocalAuth,
+  memoryBackend,
+  useBiometricAvailability,
+} from "../../src";
 
 /** How many times the device support was read. A signal, so the screen shows it. */
 const reads = signal(0);
@@ -15,6 +21,9 @@ const backend = memoryBackend({
   },
 });
 const auth = new LocalAuth({ backend });
+const mounted = signal(true);
+// The handle escapes its component on purpose: the test refreshes it after the component went.
+let handle: BiometricAvailability | null = null;
 
 function describe(state: AvailabilityState): string {
   if (state.status === "checking") return "availability checking";
@@ -23,20 +32,33 @@ function describe(state: AvailabilityState): string {
   return `availability supported ${deviceSupported} enrolled ${canCheckBiometrics} ${biometrics.join(",") || "none"}`;
 }
 
-function App() {
+function Reader() {
   const availability = useBiometricAvailability({ auth });
+  handle = availability;
   let runs = 0;
   // The line counts its own runs, so a test sees whether a read ran the binding again.
   const line = () => {
     runs += 1;
     return `${describe(availability.state())} runs ${runs}`;
   };
+  return <Text testID="availability" class="text-foreground">{line()}</Text>;
+}
+
+function App() {
   return (
     <View class="flex-1 gap-3 p-4">
-      <Text testID="availability" class="text-foreground">{line()}</Text>
+      <If when={mounted()}>
+        <Reader />
+      </If>
       <Text testID="reads" class="text-foreground">{`reads ${reads()}`}</Text>
       <Text testID="remove" role="button" onPress={() => backend.setBiometrics([])} class="rounded-(--radius) bg-muted px-3 py-2">
         Remove
+      </Text>
+      <Text testID="unmount" role="button" onPress={() => mounted.set(false)} class="rounded-(--radius) bg-muted px-3 py-2">
+        Unmount
+      </Text>
+      <Text testID="refresh" role="button" onPress={() => handle?.refresh()} class="rounded-(--radius) bg-muted px-3 py-2">
+        Refresh
       </Text>
     </View>
   );

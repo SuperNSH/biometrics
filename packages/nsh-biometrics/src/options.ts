@@ -28,4 +28,6 @@ export interface AuthOptions {
   biometricStrength?: BiometricStrength;
   /** The polkit action to check on Linux. Required there. */
   polkitActionId?: string;
+  /** Milliseconds until the call gives up with `ERR_BIOMETRICS_TIMEOUT`. Undefined waits for the platform. */
+  timeoutMs?: number;
 }

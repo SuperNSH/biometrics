@@ -39,11 +39,12 @@ export class LocalAuth {
 
   /**
    * Shows the prompt. Resolves `true` when the user passed, `false` when they failed. A cancel,
-   * a lockout or no enrollment rejects with a `BiometricsError` that has its code. A second call
-   * while one runs rejects with `ERR_BIOMETRICS_IN_PROGRESS`.
+   * a lockout, a timeout or no enrollment rejects with a `BiometricsError` that has its code. A
+   * second call while one runs rejects with `ERR_BIOMETRICS_IN_PROGRESS`, and a zero or invalid
+   * `timeoutMs` with `ERR_BIOMETRICS_INVALID_ARGUMENT`.
    */
   authenticate({ localizedReason, options = {} }: AuthenticateArgs): Promise<boolean> {
-    if (localizedReason.trim() === "") {
+    if (localizedReason.trim() === "" || (options.timeoutMs !== undefined && !(options.timeoutMs > 0))) {
       return Promise.reject(biometricsError("ERR_BIOMETRICS_INVALID_ARGUMENT"));
     }
     if (this.busy) {
@@ -52,21 +53,42 @@ export class LocalAuth {
     this.busy = true;
     return new Promise<boolean>((resolve, reject) => {
       let settled = false;
+      let timer: ReturnType<typeof setTimeout> | null = null;
       const settle = (outcome: Outcome) => {
         if (settled) return;
         settled = true;
+        if (timer !== null) clearTimeout(timer);
         if (this.waiting === settle) this.waiting = null;
         if (outcome.ok) resolve(outcome.value);
         else reject(outcome.error);
       };
       this.waiting = settle;
-      this.backend.authenticate(localizedReason, options).then(
+      if (options.timeoutMs !== undefined) {
+        timer = setTimeout(() => {
+          // Stop keeps the gate closed until the backend answers, so only an owned gate frees here.
+          if (this.waiting === settle) {
+            this.busy = false;
+            this.waiting = null;
+          }
+          settle({ ok: false, error: biometricsError("ERR_BIOMETRICS_TIMEOUT") });
+        }, options.timeoutMs);
+      }
+      let prompt: Promise<boolean>;
+      try {
+        prompt = this.backend.authenticate(localizedReason, options);
+      } catch (error: unknown) {
+        // A backend may throw before returning its promise; that rejects the call like any failure.
+        prompt = Promise.reject(error);
+      }
+      // The backend answer frees the gate unless a newer call owns it now.
+      const answerFreesGate = () => this.waiting === settle || this.waiting === null;
+      prompt.then(
         (value) => {
-          this.busy = false;
+          if (answerFreesGate()) this.busy = false;
           settle({ ok: true, value });
         },
         (error: unknown) => {
-          this.busy = false;
+          if (answerFreesGate()) this.busy = false;
           settle({ ok: false, error: asBiometricsError(error) });
         },
       );

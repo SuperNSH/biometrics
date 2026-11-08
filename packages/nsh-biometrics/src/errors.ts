@@ -6,6 +6,7 @@ export type BiometricsErrorCode =
   | "ERR_BIOMETRICS_PERMANENTLY_LOCKED_OUT"
   | "ERR_BIOMETRICS_PASSCODE_NOT_SET"
   | "ERR_BIOMETRICS_CANCELLED"
+  | "ERR_BIOMETRICS_TIMEOUT"
   | "ERR_BIOMETRICS_IN_PROGRESS"
   | "ERR_BIOMETRICS_NO_ACTIVITY"
   | "ERR_BIOMETRICS_BACKEND"
@@ -20,6 +21,7 @@ const MESSAGES: Record<BiometricsErrorCode, string> = {
     "Biometrics are locked. Sign in with the device passcode to unlock them.",
   ERR_BIOMETRICS_PASSCODE_NOT_SET: "Set a device passcode in the system settings first.",
   ERR_BIOMETRICS_CANCELLED: "The authentication was cancelled.",
+  ERR_BIOMETRICS_TIMEOUT: "The authentication timed out. Try again.",
   ERR_BIOMETRICS_IN_PROGRESS: "Another authentication is already running. Wait for it to finish.",
   ERR_BIOMETRICS_NO_ACTIVITY: "There is no screen to show the prompt on right now.",
   ERR_BIOMETRICS_BACKEND: "The platform's authentication service failed.",

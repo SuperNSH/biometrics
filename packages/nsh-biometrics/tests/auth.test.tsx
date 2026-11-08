@@ -1,5 +1,11 @@
 import { expect, test } from "nsh/test";
-import { LocalAuth, asBiometricsError, memoryBackend, type BiometricsErrorCode } from "../src";
+import {
+  LocalAuth,
+  asBiometricsError,
+  memoryBackend,
+  type AuthBackend,
+  type BiometricsErrorCode,
+} from "../src";
 
 /** Lets the answer of a finished backend call reach the gate, which frees itself a microtask later. */
 async function delivered(): Promise<void> {
@@ -13,6 +19,7 @@ const CODES: BiometricsErrorCode[] = [
   "ERR_BIOMETRICS_PERMANENTLY_LOCKED_OUT",
   "ERR_BIOMETRICS_PASSCODE_NOT_SET",
   "ERR_BIOMETRICS_CANCELLED",
+  "ERR_BIOMETRICS_TIMEOUT",
   "ERR_BIOMETRICS_IN_PROGRESS",
   "ERR_BIOMETRICS_NO_ACTIVITY",
   "ERR_BIOMETRICS_BACKEND",
@@ -64,12 +71,79 @@ test("stop with no prompt running reports false", async () => {
   expect(await auth.stopAuthentication()).toBe(false);
 });
 
+test("a timeout resolves with the code and the gate recovers", async () => {
+  const backend = memoryBackend();
+  const auth = new LocalAuth({ backend });
+  const timedOut = auth.authenticate({ localizedReason: "Unlock", options: { timeoutMs: 5 } });
+  await expect(timedOut).rejects.toMatchObject({ code: "ERR_BIOMETRICS_TIMEOUT" });
+  const next = auth.authenticate({ localizedReason: "Again" });
+  backend.finishPrompt(true);
+  expect(await next).toBe(true);
+});
+
+test("a late finishPrompt after a timeout does not disturb the newer call", async () => {
+  // One resolver per authenticate, in call order, so a timed-out prompt can answer late.
+  const answers: Array<(passed: boolean) => void> = [];
+  const backend: AuthBackend = {
+    isDeviceSupported: async () => true,
+    canCheckBiometrics: async () => true,
+    getAvailableBiometrics: async () => [],
+    authenticate: () =>
+      new Promise<boolean>((resolve) => {
+        answers.push(resolve);
+      }),
+    stopAuthentication: async () => answers.length > 0,
+  };
+  const auth = new LocalAuth({ backend });
+  const timedOut = auth.authenticate({ localizedReason: "First", options: { timeoutMs: 5 } });
+  await expect(timedOut).rejects.toMatchObject({ code: "ERR_BIOMETRICS_TIMEOUT" });
+  const newer = auth.authenticate({ localizedReason: "Second" });
+  answers[0](true);
+  await delivered();
+  await expect(auth.authenticate({ localizedReason: "Probe" })).rejects.toMatchObject({
+    code: "ERR_BIOMETRICS_IN_PROGRESS",
+  });
+  answers[1](true);
+  expect(await newer).toBe(true);
+});
+
+test("a backend that throws synchronously rejects and frees the gate", async () => {
+  const memory = memoryBackend();
+  let wedge = true;
+  const backend: AuthBackend = {
+    ...memory,
+    authenticate: (reason, options) => {
+      if (wedge) throw new Error("wedge");
+      return memory.authenticate(reason, options);
+    },
+  };
+  const auth = new LocalAuth({ backend });
+  await expect(auth.authenticate({ localizedReason: "Unlock" })).rejects.toMatchObject({
+    code: "ERR_BIOMETRICS_BACKEND",
+  });
+  wedge = false;
+  const next = auth.authenticate({ localizedReason: "Again" });
+  memory.finishPrompt(true);
+  expect(await next).toBe(true);
+});
+
 test("an empty reason is refused without a prompt", async () => {
   const backend = memoryBackend();
   const auth = new LocalAuth({ backend });
   await expect(auth.authenticate({ localizedReason: "   " })).rejects.toMatchObject({
     code: "ERR_BIOMETRICS_INVALID_ARGUMENT",
   });
+  expect(backend.prompts()).toBe(0);
+});
+
+test("a zero or invalid timeout is refused without a prompt", async () => {
+  const backend = memoryBackend();
+  const auth = new LocalAuth({ backend });
+  for (const timeoutMs of [0, -5, Number.NaN]) {
+    await expect(
+      auth.authenticate({ localizedReason: "Unlock", options: { timeoutMs } }),
+    ).rejects.toMatchObject({ code: "ERR_BIOMETRICS_INVALID_ARGUMENT" });
+  }
   expect(backend.prompts()).toBe(0);
 });
 

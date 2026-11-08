@@ -36,6 +36,7 @@ export function useBiometricAvailability(options: UseBiometricAvailabilityOption
   const state = signal<AvailabilityState>({ status: "checking" });
   let shown = "checking";
   let latest = 0;
+  let gone = false;
 
   const show = (next: AvailabilityState) => {
     const key = describeKey(next);
@@ -45,6 +46,8 @@ export function useBiometricAvailability(options: UseBiometricAvailabilityOption
   };
 
   const check = () => {
+    // The handle can outlive its component, and a read then has no owner to land in.
+    if (gone) return;
     const attempt = ++latest;
     readAll(auth).then(
       (next) => {
@@ -60,6 +63,7 @@ export function useBiometricAvailability(options: UseBiometricAvailabilityOption
     if (lifecycle() === "active") check();
   });
   cleanup(() => {
+    gone = true;
     latest += 1;
   });
   return { state: () => state(), refresh: check };
