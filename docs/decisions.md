@@ -50,6 +50,10 @@ robius's `Timeout` maps to `ERR_BIOMETRICS_TIMEOUT`, the code the opt-in `timeou
 
 NSH 0.4.0's web runtime ships no `lifecycle` accessor: the engine declares it under `nsh/device`, but the runtime replaces that namespace with a shorter one, so a TS import of `lifecycle` from `"nsh"` stays `undefined` for the app's whole run. The headless engine has it, which is why `nsh test` passes while the packaged web app crashed at mount. The TypeScript read treats a missing `lifecycle` as `"active"` — the first check still runs; the return-to-foreground re-check is what waits for an NSH release that provides the accessor. The Rust read is unaffected: it reads the engine's own lifecycle, which the web build has.
 
+## The web read treats a missing `lifecycle` as active
+
+NSH 0.4.0's web runtime ships no `lifecycle` accessor: the engine declares it under `nsh/device`, but the runtime replaces that namespace with a shorter one, so a TS import of `lifecycle` from `"nsh"` stays `undefined` for the app's whole run. The headless engine has it, which is why `nsh test` passes while the packaged web app crashed at mount. The TypeScript read treats a missing `lifecycle` as `"active"` — the first check still runs; the return-to-foreground re-check is what waits for an NSH release that provides the accessor. The Rust read is unaffected: it reads the engine's own lifecycle, which the web build has.
+
 ## Apple availability through LAContext, not robius
 
 robius has no availability query. The library asks `LAContext.canEvaluatePolicy` for the two policies it needs (device owner, and biometrics only) and reads `biometryType`. Each query uses a fresh `LAContext`, since the brief's sources say a used one can skip the prompt.

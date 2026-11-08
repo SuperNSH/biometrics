@@ -97,6 +97,7 @@ Limits:
 - **On the web, `canCheckBiometrics` can be true while `authenticate` always fails.** The availability check asks WebAuthn whether the device has a platform authenticator; the library has no web prompt, and `authenticate` rejects with `ERR_BIOMETRICS_NOT_AVAILABLE`. WebAuthn is the web's way to ask for verification, so an app must special-case the web.
 - **Windows reports `["strong"]`, not a sensor list.** With Windows Hello available, `getAvailableBiometrics` reports `["strong"]` even on a PIN-only device: `UserConsentVerifier` gives one answer for the device and cannot say which sensors back it. An app must not render 'fingerprint or face available' from it.
 - **NSH 0.4.0's web runtime has no `lifecycle` accessor.** A TS import of `lifecycle` from `"nsh"` stays `undefined` there, so `useBiometricAvailability` treats it as active: the first check runs, the foreground re-check does not. An NSH release with the accessor restores it.
+- **NSH 0.4.0's web runtime has no `lifecycle` accessor.** A TS import of `lifecycle` from `"nsh"` stays `undefined` there, so `useBiometricAvailability` treats it as active: the first check runs, the foreground re-check does not. An NSH release with the accessor restores it.
 
 ## The crates it reuses, and why
 
