@@ -1,11 +1,19 @@
 //! `LocalAuth` through the fake backend: one prompt at a time, one answer per call, cancellation.
 
-use std::future::Future;
+use std::{
+    future::{Future, ready},
+    sync::{Arc, Mutex, MutexGuard, PoisonError},
+    time::Duration,
+};
 
-use nsh_biometrics::{AuthOptions, BiometricsError, ErrorKind, FakeBackend, LocalAuth};
+use nsh_biometrics::{
+    AuthOptions, Backend, BackendFuture, BiometricType, BiometricsError, ErrorKind, FakeBackend,
+    LocalAuth, PromptDone,
+};
 
 fn run<F: Future>(future: F) -> F::Output {
     tokio::runtime::Builder::new_current_thread()
+        .enable_time()
         .build()
         .unwrap()
         .block_on(future)
@@ -36,7 +44,7 @@ async fn start_prompt(
     handle
 }
 
-const ALL_KINDS: [(ErrorKind, &str); 10] = [
+const ALL_KINDS: [(ErrorKind, &str); 11] = [
     (ErrorKind::NotAvailable, "ERR_BIOMETRICS_NOT_AVAILABLE"),
     (ErrorKind::NotEnrolled, "ERR_BIOMETRICS_NOT_ENROLLED"),
     (ErrorKind::LockedOut, "ERR_BIOMETRICS_LOCKED_OUT"),
@@ -46,6 +54,7 @@ const ALL_KINDS: [(ErrorKind, &str); 10] = [
     ),
     (ErrorKind::PasscodeNotSet, "ERR_BIOMETRICS_PASSCODE_NOT_SET"),
     (ErrorKind::Cancelled, "ERR_BIOMETRICS_CANCELLED"),
+    (ErrorKind::Timeout, "ERR_BIOMETRICS_TIMEOUT"),
     (ErrorKind::InProgress, "ERR_BIOMETRICS_IN_PROGRESS"),
     (ErrorKind::NoActivity, "ERR_BIOMETRICS_NO_ACTIVITY"),
     (ErrorKind::Backend, "ERR_BIOMETRICS_BACKEND"),
@@ -214,6 +223,20 @@ fn an_empty_reason_is_refused_without_a_prompt() {
     });
 }
 
+#[test]
+fn a_zero_timeout_is_refused_without_a_prompt() {
+    let fake = FakeBackend::new();
+    let auth = LocalAuth::with_backend(fake.clone());
+    run(async {
+        let error = auth
+            .authenticate("Unlock", &options_with_timeout(Duration::ZERO))
+            .await
+            .unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::InvalidArgument);
+        assert_eq!(fake.prompts_started(), 0);
+    });
+}
+
 // `AuthOptions` is non-exhaustive, so a test outside the crate sets its fields one by one.
 #[test]
 #[allow(clippy::field_reassign_with_default)]
@@ -253,5 +276,162 @@ fn the_device_queries_pass_through_the_backend() {
         fake.set_device_supported(Err(BiometricsError::new(ErrorKind::Backend)));
         let error = auth.is_device_supported().await.unwrap_err();
         assert_eq!(error.code(), "ERR_BIOMETRICS_BACKEND");
+    });
+}
+
+/// A backend that keeps every prompt's callback instead of one slot, so an answer can still be
+/// fired long after its prompt lost the gate — the case `FakeBackend` cannot stage.
+#[derive(Clone)]
+struct LateAnswerBackend {
+    dones: Arc<Mutex<Vec<PromptDone>>>,
+}
+
+impl LateAnswerBackend {
+    fn new() -> Self {
+        Self {
+            dones: Arc::new(Mutex::new(Vec::new())),
+        }
+    }
+
+    fn lock(&self) -> MutexGuard<'_, Vec<PromptDone>> {
+        self.dones.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// How many prompts were started.
+    fn prompts_started(&self) -> usize {
+        self.lock().len()
+    }
+
+    /// Answers one prompt by start order, however old, and forgets its callback.
+    fn answer(&self, prompt: usize, answer: Result<bool, BiometricsError>) {
+        let done = self.lock().remove(prompt);
+        done(answer);
+    }
+}
+
+impl Backend for LateAnswerBackend {
+    fn is_device_supported(&self) -> BackendFuture<'_, Result<bool, BiometricsError>> {
+        Box::pin(ready(Ok(true)))
+    }
+
+    fn can_check_biometrics(&self) -> BackendFuture<'_, Result<bool, BiometricsError>> {
+        Box::pin(ready(Ok(true)))
+    }
+
+    fn available_biometrics(
+        &self,
+    ) -> BackendFuture<'_, Result<Vec<BiometricType>, BiometricsError>> {
+        Box::pin(ready(Ok(Vec::new())))
+    }
+
+    fn start_prompt(
+        &self,
+        _reason: &str,
+        _options: &AuthOptions,
+        done: PromptDone,
+    ) -> Result<(), BiometricsError> {
+        self.lock().push(done);
+        Ok(())
+    }
+
+    fn cancel_prompt(&self) {}
+}
+
+/// The options with the opt-in timeout. `AuthOptions` is non-exhaustive, so fields are set one by one.
+#[allow(clippy::field_reassign_with_default)]
+fn options_with_timeout(timeout: Duration) -> AuthOptions {
+    let mut options = AuthOptions::default();
+    options.timeout = Some(timeout);
+    options
+}
+
+/// Starts an authentication on its own task; the test settles on its own backend signal.
+fn spawn_call(
+    auth: &LocalAuth,
+    options: &AuthOptions,
+) -> tokio::task::JoinHandle<Result<bool, BiometricsError>> {
+    let call = auth.clone();
+    let options = options.clone();
+    tokio::spawn(async move { call.authenticate("Unlock your notes", &options).await })
+}
+
+#[test]
+fn a_call_with_a_timeout_resolves_with_the_timeout_code() {
+    let backend = LateAnswerBackend::new();
+    let auth = LocalAuth::with_backend(backend.clone());
+    run(async {
+        tokio::time::pause();
+        let call = spawn_call(&auth, &options_with_timeout(Duration::from_secs(1)));
+        settle(|| backend.prompts_started() == 1).await;
+        tokio::time::advance(Duration::from_secs(2)).await;
+        let error = call.await.unwrap().unwrap_err();
+        assert_eq!(error.code(), "ERR_BIOMETRICS_TIMEOUT");
+    });
+}
+
+#[test]
+fn the_gate_is_freed_after_a_timeout_and_the_next_call_succeeds() {
+    let backend = LateAnswerBackend::new();
+    let auth = LocalAuth::with_backend(backend.clone());
+    run(async {
+        tokio::time::pause();
+        let first = spawn_call(&auth, &options_with_timeout(Duration::from_secs(1)));
+        settle(|| backend.prompts_started() == 1).await;
+        tokio::time::advance(Duration::from_secs(2)).await;
+        assert_eq!(
+            first.await.unwrap().unwrap_err().code(),
+            "ERR_BIOMETRICS_TIMEOUT"
+        );
+
+        // The timeout freed the gate: the next prompt starts and answers, with time still paused.
+        let second = spawn_call(&auth, &AuthOptions::default());
+        settle(|| backend.prompts_started() == 2).await;
+        backend.answer(1, Ok(true));
+        assert_eq!(second.await.unwrap(), Ok(true));
+    });
+}
+
+#[test]
+fn a_very_late_answer_after_a_timeout_does_not_disturb_the_next_call() {
+    let backend = LateAnswerBackend::new();
+    let auth = LocalAuth::with_backend(backend.clone());
+    run(async {
+        tokio::time::pause();
+        let first = spawn_call(&auth, &options_with_timeout(Duration::from_secs(1)));
+        settle(|| backend.prompts_started() == 1).await;
+        tokio::time::advance(Duration::from_secs(2)).await;
+        assert_eq!(
+            first.await.unwrap().unwrap_err().code(),
+            "ERR_BIOMETRICS_TIMEOUT"
+        );
+
+        let second = spawn_call(&auth, &AuthOptions::default());
+        settle(|| backend.prompts_started() == 2).await;
+        // The stale answer arrives while the newer call owns the gate, and must be dropped whole.
+        backend.answer(0, Ok(true));
+        let refused = auth
+            .authenticate("Again", &AuthOptions::default())
+            .await
+            .unwrap_err();
+        assert_eq!(refused.kind(), ErrorKind::InProgress);
+        // Only the newer prompt's own answer resolves it, and it keeps its gate the whole time.
+        backend.answer(0, Ok(false));
+        assert_eq!(second.await.unwrap(), Ok(false));
+    });
+}
+
+#[test]
+fn no_timeout_arms_no_timer() {
+    let backend = LateAnswerBackend::new();
+    let auth = LocalAuth::with_backend(backend.clone());
+    run(async {
+        tokio::time::pause();
+        let call = spawn_call(&auth, &AuthOptions::default());
+        settle(|| backend.prompts_started() == 1).await;
+        tokio::time::advance(Duration::from_secs(100_000)).await;
+        assert!(
+            !call.is_finished(),
+            "the call must still be waiting for its answer"
+        );
     });
 }

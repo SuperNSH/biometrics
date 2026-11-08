@@ -64,8 +64,14 @@ fn policy(options: &AuthOptions, password: bool) -> Result<robius::Policy, Biome
         .biometrics(Some(strength))
         .password(password)
         .companion(false);
-    if let Some(action) = &options.polkit_action_id {
-        builder = builder.action_ids([action.as_str()]);
+    // A whitespace-only action id would only fail later, in the Linux prompt, so refuse it up front.
+    let action = options
+        .polkit_action_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|a| !a.is_empty());
+    if let Some(action) = action {
+        builder = builder.action_ids([action]);
     }
     // robius refuses a policy it cannot show: on Linux, one without a polkit action.
     builder
@@ -92,16 +98,18 @@ pub(crate) fn map_error(error: &robius::Error) -> BiometricsError {
         E::Unavailable | E::BiometryDisconnected | E::NotPaired | E::DisabledByPolicy => {
             ErrorKind::NotAvailable
         }
-        E::UserCanceled | E::AppCanceled | E::SystemCanceled => ErrorKind::Cancelled,
+        // UserFallback is Apple's passcode-fallback button: the user exits by hand, like a cancel.
+        E::UserCanceled | E::AppCanceled | E::SystemCanceled | E::UserFallback => {
+            ErrorKind::Cancelled
+        }
         E::NotEnrolled | E::NotConfigured => ErrorKind::NotEnrolled,
         E::PasscodeNotSet => ErrorKind::PasscodeNotSet,
         E::InvalidActionId | E::InvalidText => ErrorKind::InvalidArgument,
         E::NotInteractive => ErrorKind::NoActivity,
+        E::Timeout => ErrorKind::Timeout,
         E::CompanionNotAvailable
         | E::InvalidDimensions
-        | E::UserFallback
         | E::UpdateRequired
-        | E::Timeout
         | E::Busy
         | E::Unknown => ErrorKind::Backend,
         #[cfg(target_os = "android")]
@@ -131,6 +139,7 @@ mod tests {
             (robius::Error::UserCanceled, ErrorKind::Cancelled),
             (robius::Error::AppCanceled, ErrorKind::Cancelled),
             (robius::Error::SystemCanceled, ErrorKind::Cancelled),
+            (robius::Error::UserFallback, ErrorKind::Cancelled),
             (robius::Error::NotEnrolled, ErrorKind::NotEnrolled),
             (robius::Error::NotConfigured, ErrorKind::NotEnrolled),
             (robius::Error::PasscodeNotSet, ErrorKind::PasscodeNotSet),
@@ -139,9 +148,8 @@ mod tests {
             (robius::Error::NotInteractive, ErrorKind::NoActivity),
             (robius::Error::CompanionNotAvailable, ErrorKind::Backend),
             (robius::Error::InvalidDimensions, ErrorKind::Backend),
-            (robius::Error::UserFallback, ErrorKind::Backend),
             (robius::Error::UpdateRequired, ErrorKind::Backend),
-            (robius::Error::Timeout, ErrorKind::Backend),
+            (robius::Error::Timeout, ErrorKind::Timeout),
             (robius::Error::Busy, ErrorKind::Backend),
             (robius::Error::Unknown, ErrorKind::Backend),
         ];
@@ -155,14 +163,24 @@ mod tests {
 
     #[test]
     fn a_policy_without_a_polkit_action_is_refused() {
-        let options = AuthOptions::default();
+        let blank = AuthOptions {
+            polkit_action_id: Some("   ".to_owned()),
+            ..AuthOptions::default()
+        };
         if cfg!(target_os = "linux") {
             assert_eq!(
-                policy(&options, true).err().map(|e| e.kind()),
+                policy(&AuthOptions::default(), true)
+                    .err()
+                    .map(|e| e.kind()),
+                Some(ErrorKind::InvalidArgument)
+            );
+            assert_eq!(
+                policy(&blank, true).err().map(|e| e.kind()),
                 Some(ErrorKind::InvalidArgument)
             );
         } else {
-            assert!(policy(&options, true).is_ok());
+            assert!(policy(&AuthOptions::default(), true).is_ok());
+            assert!(policy(&blank, true).is_ok());
         }
     }
 }

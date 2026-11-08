@@ -18,6 +18,8 @@ pub enum ErrorKind {
     PasscodeNotSet,
     /// The user, the app or the system cancelled the prompt.
     Cancelled,
+    /// The call gave up waiting: `AuthOptions::timeout` passed with the prompt still unanswered.
+    Timeout,
     /// Another prompt is already running. One prompt runs at a time.
     InProgress,
     /// The prompt has no screen to show on, for example Android with no running app.
@@ -77,6 +79,7 @@ impl ErrorKind {
             ErrorKind::PermanentlyLockedOut => "ERR_BIOMETRICS_PERMANENTLY_LOCKED_OUT",
             ErrorKind::PasscodeNotSet => "ERR_BIOMETRICS_PASSCODE_NOT_SET",
             ErrorKind::Cancelled => "ERR_BIOMETRICS_CANCELLED",
+            ErrorKind::Timeout => "ERR_BIOMETRICS_TIMEOUT",
             ErrorKind::InProgress => "ERR_BIOMETRICS_IN_PROGRESS",
             ErrorKind::NoActivity => "ERR_BIOMETRICS_NO_ACTIVITY",
             ErrorKind::Backend => "ERR_BIOMETRICS_BACKEND",
@@ -99,6 +102,7 @@ impl ErrorKind {
             }
             ErrorKind::PasscodeNotSet => "Set a device passcode in the system settings first.",
             ErrorKind::Cancelled => "The authentication was cancelled.",
+            ErrorKind::Timeout => "The authentication timed out. Try again.",
             ErrorKind::InProgress => {
                 "Another authentication is already running. Wait for it to finish."
             }

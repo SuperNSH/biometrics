@@ -1,6 +1,8 @@
 //! The authentication as TSX sees it: `NativeLocalAuth`, a class whose async members reject with a
 //! `code` on failure. Results are plain values; the prompt and the device stay on the Rust side.
 
+use std::time::Duration;
+
 use nsh_core::prelude::*;
 
 use crate::{AuthOptions, BiometricStrength, BiometricType, BiometricsError, ErrorKind, LocalAuth};
@@ -28,6 +30,8 @@ pub struct NativeAuthOptions {
     pub biometric_strength: Option<String>,
     /// The polkit action to check on Linux. Required there.
     pub polkit_action_id: Option<String>,
+    /// The longest the call waits for its answer, in milliseconds. Off unless set; unused on the web.
+    pub timeout_ms: Option<u64>,
 }
 
 /// An authentication handle. Create one and keep it; every handle shares the platform's prompt gate.
@@ -127,6 +131,7 @@ fn to_auth_options(options: NativeAuthOptions) -> Result<AuthOptions, JsError> {
         cancel_title: options.cancel_title,
         biometric_strength,
         polkit_action_id: options.polkit_action_id,
+        timeout: options.timeout_ms.map(Duration::from_millis),
     })
 }
 

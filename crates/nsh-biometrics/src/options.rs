@@ -1,5 +1,7 @@
 //! The kinds of biometric and the options of a prompt.
 
+use std::time::Duration;
+
 /// A kind of biometric or strength class, as `available_biometrics` reports it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum BiometricType {
@@ -52,4 +54,7 @@ pub struct AuthOptions {
     pub cancel_title: Option<String>,
     /// The polkit action that Linux checks, as the policy file names it. Required on Linux.
     pub polkit_action_id: Option<String>,
+    /// The longest the call waits for its answer before it resolves with `ERR_BIOMETRICS_TIMEOUT`.
+    /// Opt-in and off by default; on wasm32 it is accepted but unused, as the web has no prompt.
+    pub timeout: Option<Duration>,
 }

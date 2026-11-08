@@ -15,7 +15,7 @@ path = "src/lib.rs"
 nsh-core = "0.4.0"
 robius-authentication = "0.3.1"
 thiserror = "2.0.21"
-tokio = { version = "1.54.1", default-features = false, features = ["sync"] }
+tokio = { version = "1.54.1", default-features = false, features = ["sync", "time"] }
 
 # Apple: LocalAuthentication answers availability; robius-authentication shows the prompt.
 [target.'cfg(target_vendor = "apple")'.dependencies]
@@ -47,4 +47,4 @@ js-sys = "0.3.106"
 [dev-dependencies]
 nsh-engine = { version = "0.4.0", default-features = false }
 nsh-testing = { version = "0.4.0", default-features = false }
-tokio = { version = "1.54.1", default-features = false, features = ["rt"] }
+tokio = { version = "1.54.1", default-features = false, features = ["rt", "time", "test-util"] }
