@@ -18,13 +18,12 @@ fn can_evaluate(policy: LAPolicy) -> bool {
     unsafe { context.canEvaluatePolicy_error(policy) }.is_ok()
 }
 
-/// The biometry the device has, once `canEvaluatePolicy` has run on this context.
-fn biometry() -> LABiometryType {
+/// The biometry the device has, or `None` when the biometrics policy check fails.
+fn biometry() -> Option<LABiometryType> {
     let context = unsafe { LAContext::new() };
-    let _ = unsafe {
-        context.canEvaluatePolicy_error(LAPolicy::DeviceOwnerAuthenticationWithBiometrics)
-    };
-    unsafe { context.biometryType() }
+    unsafe { context.canEvaluatePolicy_error(LAPolicy::DeviceOwnerAuthenticationWithBiometrics) }
+        .ok()
+        .map(|_| unsafe { context.biometryType() })
 }
 
 impl Backend for NativeBackend {
@@ -44,12 +43,14 @@ impl Backend for NativeBackend {
         &self,
     ) -> BackendFuture<'_, Result<Vec<BiometricType>, BiometricsError>> {
         Box::pin(async {
+            // Hardware can exist with nothing enrolled, where the policy check fails;
+            // reporting a kind then would contradict `can_check_biometrics` being false.
             let kind = off_engine(biometry).await?;
-            let types = if kind == LABiometryType::FaceID {
+            let types = if kind == Some(LABiometryType::FaceID) {
                 vec![BiometricType::Face]
-            } else if kind == LABiometryType::TouchID {
+            } else if kind == Some(LABiometryType::TouchID) {
                 vec![BiometricType::Fingerprint]
-            } else if kind == LABiometryType::OpticID {
+            } else if kind == Some(LABiometryType::OpticID) {
                 vec![BiometricType::Iris]
             } else {
                 Vec::new()
