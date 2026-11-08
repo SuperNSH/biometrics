@@ -1,4 +1,5 @@
-//! A target with no biometric backend: nothing is available, and a prompt cannot be shown.
+//! A target with no biometric backend, the web included: nothing is available, and a prompt
+//! cannot be shown.
 
 use crate::{
     backend::{Backend, BackendFuture, PromptDone},

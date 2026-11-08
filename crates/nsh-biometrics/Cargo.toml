@@ -38,12 +38,6 @@ windows-future = { version = "0.3.2", features = ["std"] }
 zbus = "6.2.1"
 zbus_polkit = "6.0.0"
 
-# The web: the WebAuthn check through the page's own globals. The wasm-bindgen version is the one NSH 0.4.0 links.
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-wasm-bindgen = "=0.2.129"
-wasm-bindgen-futures = "0.4.79"
-js-sys = "0.3.106"
-
 [dev-dependencies]
 nsh-engine = { version = "0.4.0", default-features = false }
 nsh-testing = { version = "0.4.0", default-features = false }

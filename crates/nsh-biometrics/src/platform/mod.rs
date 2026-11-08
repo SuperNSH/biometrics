@@ -1,4 +1,5 @@
-//! The platform backends. Each target gets one `NativeBackend`; a target with none reports that nothing is available.
+//! The platform backends. Each target gets one `NativeBackend`; a target with none, the web
+//! included, reports that nothing is available.
 
 #[cfg(target_os = "android")]
 mod android;
@@ -17,12 +18,9 @@ mod robius;
     target_vendor = "apple",
     target_os = "android",
     target_os = "linux",
-    target_os = "windows",
-    target_arch = "wasm32"
+    target_os = "windows"
 )))]
 mod unsupported;
-#[cfg(target_arch = "wasm32")]
-mod web;
 #[cfg(target_os = "windows")]
 mod windows;
 
@@ -40,12 +38,9 @@ use linux::NativeBackend;
     target_vendor = "apple",
     target_os = "android",
     target_os = "linux",
-    target_os = "windows",
-    target_arch = "wasm32"
+    target_os = "windows"
 )))]
 use unsupported::NativeBackend;
-#[cfg(target_arch = "wasm32")]
-use web::NativeBackend;
 #[cfg(target_os = "windows")]
 use windows::NativeBackend;
 

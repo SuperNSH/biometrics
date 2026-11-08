@@ -96,11 +96,11 @@ robius-authentication 0.3.1 uses zbus 5 for the prompt. The library's availabili
 
 `polkit_action_id` that is empty or only whitespace gets `ERR_BIOMETRICS_INVALID_ARGUMENT`, like a missing one. Neither names an action for polkit to check.
 
-## Web: the WebAuthn check, and no prompt
+## Web: reported as unsupported
 
-The web has no secret store or biometric prompt the page can call. `authenticate` returns `ERR_BIOMETRICS_NOT_AVAILABLE`. The availability read calls `PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()` through the global object, so a page without WebAuthn answers `false` and does not fail. The check uses `js-sys` reflection, not `web-sys` features, so no feature list has to match a browser API.
+The web has no API that verifies the user: WebAuthn is a ceremony bound to an origin and a registered credential, not a prompt a library can call, and the platform-authenticator check only says whether WebAuthn could run, not whether this library can do anything. The first release answered availability with that check, which set a trap — `can_check_biometrics` was `true` while `authenticate` always failed — so the web now reports what the library can do: nothing. Every availability answer is false, `authenticate` returns `ERR_BIOMETRICS_NOT_AVAILABLE`, and the web module is the same unsupported backend any other target without a prompt gets. An app that wants WebAuthn calls it directly; the check is one line and the ceremony is the app's anyway.
 
-The wasm-bindgen version is pinned to `=0.2.129`, the one NSH 0.4.0 runs, as `nsh-secure-storage` does.
+The `wasm-bindgen`, `wasm-bindgen-futures` and `js-sys` dependencies are gone with the check.
 
 ## iOS needs an Info.plist key, and NSH 0.4.0 cannot set it
 
@@ -135,10 +135,9 @@ NSH's web build is static with relative asset paths, so it serves from the `/bio
 
 ## Versions
 
-Each direct dependency is the newest stable release on crates.io on 2026-11-07, as `docs/brief.md` asks, with three pins that a newer release would break:
+Each direct dependency is the newest stable release on crates.io on 2026-11-07, as `docs/brief.md` asks, with two pins that a newer release would break:
 
-- `wasm-bindgen` is `=0.2.129`, the runtime `nsh` 0.4.0 runs for the web. `wasm-bindgen-futures` 0.4.79 and `js-sys` 0.3.106 are the releases that match it; the newer ones need wasm-bindgen 0.2.130.
 - `windows-future` is 0.3.2, the version `windows` 0.62.2 resolves. A different version would give a different `IAsyncOperation` type.
 - `libc` is 0.2.191. Its 1.0 release is an alpha.
 
-The wasm pins are the ones `nsh-secure-storage` builds with in CI.
+The web once pinned `wasm-bindgen` to `=0.2.129`, the release `nsh` 0.4.0 runs; the pins left with the WebAuthn check the web module no longer makes.

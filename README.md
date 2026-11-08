@@ -84,7 +84,7 @@ mount(App);
 | Android | robius-authentication `BiometricPrompt` (API 28+) | `BiometricManager.canAuthenticate`, `KeyguardManager.isDeviceSecure` | Builds in CI. Needs `USE_BIOMETRIC` in the manifest; see below |
 | Windows | robius-authentication (Windows Hello) | `UserConsentVerifier.CheckAvailabilityAsync` | Builds and tests in CI |
 | Linux | robius-authentication (polkit) | polkit's authority, and fprintd's enrolled fingers over D-Bus | Builds and tests in CI. Needs a `polkit_action_id` and an installed policy file |
-| Web | none: `authenticate` returns `ERR_BIOMETRICS_NOT_AVAILABLE` | `PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()` | Builds in CI. WebAuthn is the web's way to ask for verification |
+| Web | none: `authenticate` returns `ERR_BIOMETRICS_NOT_AVAILABLE` | Nothing: the web is an unsupported target | Builds in CI. The page has no API that verifies the user; WebAuthn is the web's way, and an app that wants it calls it directly |
 
 Limits:
 
@@ -94,7 +94,7 @@ Limits:
 - **iOS Face ID needs an `Info.plist` key that NSH 0.4.0 cannot set.** See the TSX section above.
 - **Some options are accepted and not applied.** `sensitiveTransaction`, `stickyAuth`, the Android negative button, and Apple's fallback and cancel titles. `docs/parity.md` lists them.
 - **Permanent lockout is reported as a lockout.** `ERR_BIOMETRICS_PERMANENTLY_LOCKED_OUT` exists, but robius-authentication does not report that state separately.
-- **On the web, `canCheckBiometrics` can be true while `authenticate` always fails.** The availability check asks WebAuthn whether the device has a platform authenticator; the library has no web prompt, and `authenticate` rejects with `ERR_BIOMETRICS_NOT_AVAILABLE`. WebAuthn is the web's way to ask for verification, so an app must special-case the web.
+- **The web is an unsupported target.** Every availability answer is `false` and `authenticate` rejects with `ERR_BIOMETRICS_NOT_AVAILABLE`. The page has no API that verifies the user: WebAuthn is a ceremony bound to an origin and a registered credential, not a prompt a library can call, so an app that wants it uses it directly.
 - **Windows reports `["strong"]`, not a sensor list.** With Windows Hello available, `getAvailableBiometrics` reports `["strong"]` even on a PIN-only device: `UserConsentVerifier` gives one answer for the device and cannot say which sensors back it. An app must not render 'fingerprint or face available' from it.
 - **NSH 0.4.0's web runtime has no `lifecycle` accessor.** A TS import of `lifecycle` from `"nsh"` stays `undefined` there, so `useBiometricAvailability` treats it as active: the first check runs, the foreground re-check does not. An NSH release with the accessor restores it.
 
@@ -108,7 +108,6 @@ Limits:
 - [`tokio`](https://crates.io/crates/tokio), with its `sync` and `time` features, provides the one-shot channel that resolves a call and the timer behind `timeout`.
 - [`thiserror`](https://crates.io/crates/thiserror) 2.0.21 derives the error's `Display`.
 - `nsh-core`, `nsh-engine` and `nsh-testing` 0.4.0 provide NSH's reactivity, `#[native_module]` and the headless test driver.
-- `wasm-bindgen`, `wasm-bindgen-futures` and `js-sys` make the web check.
 
 Flutter's `local_auth` set the API, and `tauri-plugin-biometry` was the reference for each platform's availability check. `nsh-secure-storage` set the layout, the error codes and the CI.
 
