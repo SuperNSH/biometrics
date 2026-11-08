@@ -135,7 +135,7 @@ impl LocalAuth {
                     _ = tokio::time::sleep(timeout) => {
                         owner.armed = false;
                         free_after_timeout(&self.shared, generation);
-                        Err(BiometricsError::new(ErrorKind::Timeout))
+                        Ok(Err(BiometricsError::new(ErrorKind::Timeout)))
                     }
                 }
             }

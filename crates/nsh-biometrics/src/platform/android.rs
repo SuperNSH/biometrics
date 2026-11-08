@@ -108,7 +108,7 @@ fn ensure_context() -> Result<(), BiometricsError> {
     // The probe panics once on a fresh process; a silent hook keeps that out of the log.
     let previous = std::panic::take_hook();
     std::panic::set_hook(Box::new(|_| {}));
-    let probe = std::panic::catch_unwind(AssertUnwindSafe(ndk_context::android_context));
+    let probe = catch_unwind(AssertUnwindSafe(ndk_context::android_context));
     std::panic::set_hook(previous);
     if probe.is_ok() {
         *ready = true;
