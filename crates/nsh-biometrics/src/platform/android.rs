@@ -5,7 +5,11 @@
 //! `ndk-context` once. The manifest must declare `android.permission.USE_BIOMETRIC`; NSH 0.4.0 has no
 //! setting that adds it, so the app adds it to the generated manifest (`docs/decisions.md`).
 
-use std::{ffi::c_void, sync::Mutex};
+use std::{
+    ffi::c_void,
+    panic::{AssertUnwindSafe, catch_unwind},
+    sync::Mutex,
+};
 
 use jni::{
     Env, JavaVM, jni_sig, jni_str,
@@ -90,12 +94,24 @@ fn application<'local>(env: &mut Env<'local>) -> Result<JObject<'local>, Biometr
     Ok(application)
 }
 
-/// Gives `ndk-context` the VM and the application, once, so robius can reach Java.
+/// Gives `ndk-context` the VM and the application, once, so robius can reach Java. A context another
+/// runtime installed already is adopted untouched.
 fn ensure_context() -> Result<(), BiometricsError> {
     let mut ready = CONTEXT
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     if *ready {
+        return Ok(());
+    }
+    // `ndk-context` has no try-get and asserts on a second initialization, and its getter panics
+    // while nothing is installed, so the probe is the only way to tell an existing context apart.
+    // The probe panics once on a fresh process; a silent hook keeps that out of the log.
+    let previous = std::panic::take_hook();
+    std::panic::set_hook(Box::new(|_| {}));
+    let probe = std::panic::catch_unwind(AssertUnwindSafe(ndk_context::android_context));
+    std::panic::set_hook(previous);
+    if probe.is_ok() {
+        *ready = true;
         return Ok(());
     }
     let vm = find_vm()?;
@@ -105,7 +121,7 @@ fn ensure_context() -> Result<(), BiometricsError> {
         let global = env.new_global_ref(app)?;
         Ok::<_, BiometricsError>(global.into_raw().cast::<c_void>())
     })?;
-    // SAFETY: the VM and the application are the process's own, and this runs once, under the lock.
+    // SAFETY: the VM and the application are the process's own, and the probe showed nothing is installed.
     unsafe { ndk_context::initialize_android_context(vm.cast(), context) };
     *ready = true;
     Ok(())
