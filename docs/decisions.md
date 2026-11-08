@@ -91,6 +91,10 @@ The brief lists `negative_button`, `fallback_title` and `cancel_title`, and robi
 
 No test shows a real prompt. A test that opened one could hang on a runner whose account has a password. `App.tsx` and the TypeScript tests press only Stop, which needs no prompt.
 
+## The web demo deploys to GitHub Pages
+
+NSH's web build is static with relative asset paths, so it serves from the `/biometrics/` subpath a project page gets. CI deploys the `demo-web` artifact, the same tarball the `latest` release takes, rather than building the demo twice. Pages is set to be served by the workflow (`build_type: workflow`) in the repo settings once, because `configure-pages` v6 no longer turns Pages on with `GITHUB_TOKEN`.
+
 ## Versions
 
 Each direct dependency is the newest stable release on crates.io on 2026-11-07, as `docs/brief.md` asks, with three pins that a newer release would break:

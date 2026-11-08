@@ -74,7 +74,7 @@ mount(App);
 
 **iOS needs `NSFaceIDUsageDescription` in `Info.plist` before an app uses Face ID, and NSH 0.4.0 cannot write it.** That release rejects an `ios` key in `nsh.json`. The main branch of NSH reads `ios.infoPlist`, so a later release will take the key. Until then, Apple ends an iOS app that asks for Face ID without the key. Touch ID and the passcode do not need it.
 
-`examples/demo` is a complete app: a button that authenticates and shows the result.
+`examples/demo` is a complete app: a button that authenticates and shows the result. Its web build runs at [supernsh.github.io/biometrics](https://supernsh.github.io/biometrics/), redeployed on every push to `master`.
 
 ## Platforms
 
@@ -117,6 +117,7 @@ CI runs on every push to `master` and on pull requests. Every job runs on GitHub
 - **Cross-check** for iOS, the iOS simulator, Android and wasm: Clippy for each target, which compiles each platform's code.
 - **TypeScript**: `nsh check`, `nsh build` with no warnings, and `nsh test` for the package.
 - **Demo**, on `master` only: `examples/demo` is packaged for macOS, Linux and Windows, each on both x86_64 and arm64, plus the iOS simulator, Android and the web, and the `latest` release is replaced with those builds.
+- **Pages**, on `master` only: the demo's web build is deployed to GitHub Pages, from the same artifact the release takes.
 
 CI does **not**:
 
