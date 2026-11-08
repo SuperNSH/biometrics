@@ -31,7 +31,7 @@ fn fake() -> FakeBackend {
 pub fn Probe() -> impl IntoElement {
     let mounted = signal(true);
     view()
-        .child(when(mounted, Reader))
+        .child(when(mounted, reader))
         .child(
             view()
                 .role(AccessibilityRole::Button)
@@ -57,7 +57,7 @@ pub fn Probe() -> impl IntoElement {
 }
 
 /// The read, made under the `when` region's owner so Remove dismisses it.
-fn Reader() -> impl IntoElement {
+fn reader() -> impl IntoElement {
     let availability = use_biometric_availability_for(LocalAuth::with_backend(fake()));
     *HANDLE.lock().unwrap_or_else(PoisonError::into_inner) = Some(availability);
     text(move || {
