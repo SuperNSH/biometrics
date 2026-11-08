@@ -5,7 +5,7 @@
 
 use windows::{
     Security::Credentials::UI::{UserConsentVerifier, UserConsentVerifierAvailability},
-    Win32::System::WinRT::{RO_INIT_MULTITHREADED, RoInitialize},
+    Win32::System::WinRT::{RO_INIT_MULTITHREADED, RoInitialize, RoUninitialize},
 };
 
 use super::robius::{off_engine, start_prompt};
@@ -17,10 +17,34 @@ use crate::{
 
 pub(crate) struct NativeBackend;
 
+/// Balances one `RoInitialize` with `RoUninitialize` on drop; without the guard each
+/// availability query leaks a COM init reference on the reused blocking-pool thread.
+struct ComGuard {
+    should_uninit: bool,
+}
+
+impl ComGuard {
+    fn new_multithreaded() -> Self {
+        // SAFETY: Ok covers S_OK and S_FALSE and means this thread owes an RoUninitialize;
+        // Err (RPC_E_CHANGED_MODE) means the thread is already in another mode, so leave it.
+        Self {
+            should_uninit: unsafe { RoInitialize(RO_INIT_MULTITHREADED) }.is_ok(),
+        }
+    }
+}
+
+impl Drop for ComGuard {
+    fn drop(&mut self) {
+        if self.should_uninit {
+            // SAFETY: paired with the RoInitialize that set `should_uninit`.
+            unsafe { RoUninitialize() };
+        }
+    }
+}
+
 /// Asks Windows Hello whether it can verify the user now. Blocks until WinRT answers.
 fn availability() -> Result<UserConsentVerifierAvailability, BiometricsError> {
-    // SAFETY: WinRT's initializer for this thread. An error means the thread is already set up in another mode, which is fine.
-    let _ = unsafe { RoInitialize(RO_INIT_MULTITHREADED) };
+    let _com = ComGuard::new_multithreaded();
     let operation = UserConsentVerifier::CheckAvailabilityAsync().map_err(windows_error)?;
     operation.join().map_err(windows_error)
 }
