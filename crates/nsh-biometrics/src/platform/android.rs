@@ -2,7 +2,7 @@
 //!
 //! NSH does not start `ndk-context`, which robius reads for its Java context. So this module finds
 //! the VM through `libnativehelper` and the application through `ActivityThread`, and hands both to
-//! `ndk-context` once. The manifest must declare `android.permission.USE_BIOMETRIC`; NSH 0.4.0 has no
+//! `ndk-context` once. The manifest must declare `android.permission.USE_BIOMETRIC`; NSH 0.5.0 has no
 //! setting that adds it, so the app adds it to the generated manifest (`docs/decisions.md`).
 
 use std::{

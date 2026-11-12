@@ -12,7 +12,7 @@ name = "nsh_biometrics"
 path = "src/lib.rs"
 
 [dependencies]
-nsh-core = "0.4.0"
+nsh-core = "0.5.0"
 robius-authentication = "0.3.1"
 thiserror = "2.0.21"
 tokio = { version = "1.54.1", default-features = false, features = ["sync", "time"] }
@@ -39,6 +39,6 @@ zbus = "6.2.1"
 zbus_polkit = "6.0.0"
 
 [dev-dependencies]
-nsh-engine = { version = "0.4.0", default-features = false }
-nsh-testing = { version = "0.4.0", default-features = false }
+nsh-engine = { version = "0.5.0", default-features = false }
+nsh-testing = { version = "0.5.0", default-features = false }
 tokio = { version = "1.54.1", default-features = false, features = ["rt", "time", "test-util"] }
