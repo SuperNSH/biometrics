@@ -19,7 +19,7 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: 0
-  LINUX_PACKAGES: dbus dbus-user-session gnome-keyring libgtk-4-dev libwebkitgtk-6.0-dev clang llvm
+  LINUX_PACKAGES: dbus dbus-user-session gnome-keyring libgtk-4-dev libwebkitgtk-6.0-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev clang llvm
 
 jobs:
   format:
@@ -113,7 +113,7 @@ jobs:
         env:
           NSH_VERSION: v0.5.1
         run: |
-          curl -fsSL https://raw.githubusercontent.com/SuperNSH/nsh-builds/master/install.sh | sh
+          curl -fsSL https://nsh.dev/install.sh | sh
           echo "$HOME/.nsh/bin" >> "$GITHUB_PATH"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Install NSH
@@ -122,7 +122,7 @@ jobs:
         env:
           NSH_VERSION: v0.5.1
         run: |
-          irm https://raw.githubusercontent.com/SuperNSH/nsh-builds/master/install.ps1 | iex
+          irm https://nsh.dev/install.ps1 | iex
           "$env:LOCALAPPDATA\nsh\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
       - name: Check, build and test
         working-directory: packages/nsh-biometrics
@@ -137,14 +137,13 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     needs: [format, rust, typescript]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
         include:
           # Desktop builds come out for the runner's own processor, so each architecture gets its own runner.
-          # NSH installs from SuperNSH/nsh-builds' installer: NSH's own release where it has one
-          # (macOS arm64, Linux x86_64, Windows x86_64), SuperNSH/nsh-builds' build of it otherwise.
+          # NSH's v0.5.1 release ships a prebuilt CLI for every one of them, so all install it the same way.
           - { os: macos-latest, target: macos, name: macos-arm64 }
           - { os: macos-15-intel, target: macos, name: macos-x86_64 }
           - { os: ubuntu-latest, target: linux, name: linux-x86_64 }
@@ -161,6 +160,10 @@ jobs:
           toolchain: stable
           targets: ${{ matrix.target == 'android' && 'aarch64-linux-android' || matrix.target == 'web' && 'wasm32-unknown-unknown' || matrix.target == 'ios-simulator' && 'aarch64-apple-ios-sim' || '' }}
       - uses: kunobi-ninja/kache-action@ad7317540dcdd71c904f7a60a87b620a0c0e67ed # v1
+        # Not on the Intel Mac: kache 2.0.0's macOS broker loses a race with compilers that exit at once
+        # (a build script's `rustc --version`), fails with "cannot read compiler process identity", and
+        # will not run the compiler itself. kache 2.1.1 fixes it (kunobi-ninja/kache#1817).
+        if: matrix.name != 'macos-x86_64'
         with:
           version: v2.0.0
           cache-dir: ${{ runner.temp }}/kache
@@ -181,7 +184,7 @@ jobs:
         env:
           NSH_VERSION: v0.5.1
         run: |
-          curl -fsSL https://raw.githubusercontent.com/SuperNSH/nsh-builds/master/install.sh | sh
+          curl -fsSL https://nsh.dev/install.sh | sh
           echo "$HOME/.nsh/bin" >> "$GITHUB_PATH"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Install NSH
@@ -190,20 +193,8 @@ jobs:
         env:
           NSH_VERSION: v0.5.1
         run: |
-          irm https://raw.githubusercontent.com/SuperNSH/nsh-builds/master/install.ps1 | iex
+          irm https://nsh.dev/install.ps1 | iex
           "$env:LOCALAPPDATA\nsh\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
-      - name: Build NSH's crates from the v0.5.1 source for the iOS package
-        if: matrix.target == 'ios-simulator'
-        # Added because 0.4.0's crates.io nsh-platform-ios did not package; a local 0.5.0 ios-simulator package built without it.
-        run: |
-          git clone --quiet --depth 1 --branch v0.5.1 https://github.com/longbridge/nsh "$RUNNER_TEMP/nsh-src"
-          mkdir -p examples/demo/.cargo
-          {
-            echo "[patch.crates-io]"
-            for crate in "$RUNNER_TEMP"/nsh-src/crates/nsh-*; do
-              echo "$(basename "$crate") = { path = \"$crate\" }"
-            done
-          } > examples/demo/.cargo/config.toml
       - name: Package
         shell: bash
         working-directory: examples/demo
@@ -233,7 +224,7 @@ jobs:
 
   publish:
     name: publish the latest build
-    needs: demo
+    needs: [format, rust, cross-check, typescript, demo]
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -252,6 +243,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         run: |
+          test "$(ls dist | wc -l)" -eq 9 || { echo "expected nine demo builds in dist:"; ls -la dist; exit 1; }
           gh release delete latest --repo "$REPO" --cleanup-tag --yes || true
           gh release create latest dist/* --repo "$REPO" --target "$GITHUB_SHA" --latest \
             --title "Latest build" \
@@ -259,7 +251,7 @@ jobs:
 
   pages:
     name: deploy the web demo to Pages
-    needs: demo
+    needs: [format, rust, cross-check, typescript, demo]
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     timeout-minutes: 15
