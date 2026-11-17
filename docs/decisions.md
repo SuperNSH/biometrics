@@ -48,7 +48,7 @@ robius's `Timeout` maps to `ERR_BIOMETRICS_TIMEOUT`, the code the opt-in `timeou
 
 ## The web read treats a missing `lifecycle` as active
 
-NSH 0.4.0's web runtime ships no `lifecycle` accessor: the engine declares it under `nsh/device`, but the runtime replaces that namespace with a shorter one, so a TS import of `lifecycle` from `"nsh"` stays `undefined` for the app's whole run. The headless engine has it, which is why `nsh test` passes while the packaged web app crashed at mount. The TypeScript read treats a missing `lifecycle` as `"active"` — the first check still runs; the return-to-foreground re-check is what waits for an NSH release that provides the accessor. The Rust read is unaffected: it reads the engine's own lifecycle, which the web build has.
+NSH 0.4.0's web runtime shipped no `lifecycle` accessor, so a TS import of `lifecycle` from `"nsh"` stayed `undefined` there and the packaged web app crashed at mount. NSH 0.5's web runtime exports it from `"nsh"` and follows the page's visibility, so the foreground re-check runs on the web too. The TypeScript read still treats a missing `lifecycle` as `"active"`, which costs nothing and keeps an older runtime from crashing. The Rust read reads the engine's own lifecycle.
 
 ## Apple availability through LAContext, not robius
 
@@ -72,7 +72,7 @@ The prompt start runs on the engine thread, unlike the availability queries, whi
 
 ### USE_BIOMETRIC is not declared, and this library cannot declare it
 
-`android.permission.USE_BIOMETRIC` must be in the app's manifest. NSH 0.4.0 writes the manifest itself. It declares `INTERNET`, and `POST_NOTIFICATIONS` when the app has the `notifications` capability, and no setting adds other permissions (`crates/nsh-cli/src/android.rs`). So an NSH app cannot get the permission from `nsh.json` today. Until NSH offers a way, a prompt on Android fails with the framework's `SecurityException`, which robius reports as `ERR_BIOMETRICS_BACKEND`. This is a gap in NSH, and the README says so.
+`android.permission.USE_BIOMETRIC` must be in the app's manifest. NSH writes the manifest itself (checked again on 0.5.1). It declares `INTERNET`, `POST_NOTIFICATIONS` when the app has the `notifications` capability, and `RECORD_AUDIO` and `CAMERA` for web pages that capture media, and no setting adds other permissions (`crates/nsh-cli/src/android.rs`). So an NSH app cannot get the permission from `nsh.json` today. Until NSH offers a way, a prompt on Android fails with the framework's `SecurityException`, which robius reports as `ERR_BIOMETRICS_BACKEND`. This is a gap in NSH, and the README says so.
 
 ## Windows: the blocking call uses windows-future's `join`
 
@@ -102,9 +102,9 @@ The web has no API that verifies the user: WebAuthn is a ceremony bound to an or
 
 The `wasm-bindgen`, `wasm-bindgen-futures` and `js-sys` dependencies are gone with the check.
 
-## iOS needs an Info.plist key, and NSH 0.4.0 cannot set it
+## iOS needs an Info.plist key, and the app sets it
 
-Apple requires `NSFaceIDUsageDescription` for Face ID. The brief asks the docs to say how to add it with NSH. NSH's main branch takes `ios.infoPlist` in `nsh.json`, but the released 0.4.0 CLI, which CI installs, rejects an `ios` key with `unknown field ios`. The demo therefore has no such key. The README says so, and the key goes in once an NSH release accepts it. A library cannot write an app's `Info.plist` itself.
+Apple requires `NSFaceIDUsageDescription` for Face ID. NSH 0.4.0 rejected an `ios` key in `nsh.json`; NSH 0.5 takes `ios.infoPlist` and writes its keys into the package's `Info.plist`. The demo sets the key there. A library cannot write an app's `Info.plist` itself, so each app adds its own wording.
 
 ## Options a platform cannot apply are accepted
 

@@ -11,6 +11,25 @@ What it does:
 
 `docs/parity.md` lists every `local_auth` name and what it does here. `docs/decisions.md` says why each choice was made.
 
+## Try the demo
+
+The demo in `examples/demo` shows what the device reports and a button that authenticates. Open it on the web at https://supernsh.github.io/biometrics/ (the web is an unsupported target, so it reports nothing available), or download a build of the latest `master`:
+
+| Platform | Download |
+|---|---|
+| macOS (Apple silicon) | [biometrics-demo-macos-arm64.zip](https://github.com/SuperNSH/biometrics/releases/latest/download/biometrics-demo-macos-arm64.zip) |
+| macOS (Intel) | [biometrics-demo-macos-x86_64.zip](https://github.com/SuperNSH/biometrics/releases/latest/download/biometrics-demo-macos-x86_64.zip) |
+| Linux x86_64 | [biometrics-demo-linux-x86_64.tar.gz](https://github.com/SuperNSH/biometrics/releases/latest/download/biometrics-demo-linux-x86_64.tar.gz) |
+| Linux arm64 | [biometrics-demo-linux-arm64.tar.gz](https://github.com/SuperNSH/biometrics/releases/latest/download/biometrics-demo-linux-arm64.tar.gz) |
+| Windows x86_64 | [biometrics-demo-windows-x86_64.zip](https://github.com/SuperNSH/biometrics/releases/latest/download/biometrics-demo-windows-x86_64.zip) |
+| Windows arm64 | [biometrics-demo-windows-arm64.zip](https://github.com/SuperNSH/biometrics/releases/latest/download/biometrics-demo-windows-arm64.zip) |
+| iOS simulator | [biometrics-demo-ios-simulator.zip](https://github.com/SuperNSH/biometrics/releases/latest/download/biometrics-demo-ios-simulator.zip) |
+| Android (arm64) | [biometrics-demo-android.apk](https://github.com/SuperNSH/biometrics/releases/latest/download/biometrics-demo-android.apk) |
+| Web (static site) | [biometrics-demo-web.tar.gz](https://github.com/SuperNSH/biometrics/releases/latest/download/biometrics-demo-web.tar.gz) |
+
+- **macOS:** the app is signed ad hoc, not notarized, and needs macOS 14 or later. macOS quarantines what a browser downloads, so clear that before opening it: `xattr -dr com.apple.quarantine <the unzipped .app>`.
+- **iOS simulator:** an arm64 simulator build, so it needs Xcode with an iOS simulator runtime on an Apple silicon Mac. Unzip it and install it on a booted simulator with `xcrun simctl install booted <the unzipped .app>`, or drag the `.app` onto the simulator window.
+
 ## Install and use it in Rust
 
 Add the crate to `Cargo.toml`:
@@ -72,9 +91,17 @@ function App() {
 mount(App);
 ```
 
-**iOS needs `NSFaceIDUsageDescription` in `Info.plist` before an app uses Face ID, and NSH 0.4.0 cannot write it.** That release rejects an `ios` key in `nsh.json`. The main branch of NSH reads `ios.infoPlist`, so a later release will take the key. Until then, Apple ends an iOS app that asks for Face ID without the key. Touch ID and the passcode do not need it.
+**iOS needs `NSFaceIDUsageDescription` in `Info.plist` before an app uses Face ID.** Apple ends an iOS app that asks for Face ID without it; Touch ID and the passcode do not need it. NSH 0.5 writes the app's own `Info.plist` keys from `ios.infoPlist` in `nsh.json`, as `examples/demo/nsh.json` does:
 
-`examples/demo` is a complete app: a button that authenticates and shows the result. Its web build runs at [supernsh.github.io/biometrics](https://supernsh.github.io/biometrics/), redeployed on every push to `master`.
+```json
+{
+  "ios": {
+    "infoPlist": { "NSFaceIDUsageDescription": "Unlock your notes with Face ID." }
+  }
+}
+```
+
+`examples/demo` is a complete app: a button that authenticates and shows the result. [Try the demo](#try-the-demo) links its builds.
 
 ## Platforms
 
@@ -90,13 +117,12 @@ Limits:
 
 - **Cancel does not dismiss the system prompt.** robius-authentication has no cancel. `stopAuthentication` and a dropped call resolve at once with `ERR_BIOMETRICS_CANCELLED`, but the system prompt stays until the user answers it. A new call gets `ERR_BIOMETRICS_IN_PROGRESS` until then. A `timeout` is the one exception: it force-frees the gate.
 - **A `timeout` frees the gate but not the screen.** `timeout` on `AuthOptions` (`timeoutMs` in TSX) resolves the call with `ERR_BIOMETRICS_TIMEOUT` when the duration passes, and the gate frees for the next call. The first prompt is still on screen, so a newer prompt can stack over it. That trade is why it is off by default.
-- **Android needs the permission, and NSH cannot add it.** `android.permission.USE_BIOMETRIC` must be in the generated manifest. NSH 0.5.0 declares only `INTERNET`, plus `POST_NOTIFICATIONS`, `RECORD_AUDIO` and `CAMERA` for the capabilities that need them, and no setting adds other permissions. Until NSH offers one, a prompt on Android fails with `ERR_BIOMETRICS_BACKEND`.
-- **iOS Face ID needs an `Info.plist` key that NSH 0.4.0 cannot set.** See the TSX section above.
+- **Android needs the permission, and NSH cannot add it.** `android.permission.USE_BIOMETRIC` must be in the generated manifest. NSH 0.5.1 declares only `INTERNET`, plus `POST_NOTIFICATIONS`, `RECORD_AUDIO` and `CAMERA` for the capabilities that need them, and no setting adds other permissions. Until NSH offers one, a prompt on Android fails with `ERR_BIOMETRICS_BACKEND`.
+- **iOS Face ID needs an `Info.plist` key, which the app sets.** `NSFaceIDUsageDescription` goes under `ios.infoPlist` in `nsh.json`; see the TSX section above.
 - **Some options are accepted and not applied.** `sensitiveTransaction`, `stickyAuth`, the Android negative button, and Apple's fallback and cancel titles. `docs/parity.md` lists them.
 - **Permanent lockout is reported as a lockout.** `ERR_BIOMETRICS_PERMANENTLY_LOCKED_OUT` exists, but robius-authentication does not report that state separately.
 - **The web is an unsupported target.** Every availability answer is `false` and `authenticate` rejects with `ERR_BIOMETRICS_NOT_AVAILABLE`. The page has no API that verifies the user: WebAuthn is a ceremony bound to an origin and a registered credential, not a prompt a library can call, so an app that wants it uses it directly.
 - **Windows reports `["strong"]`, not a sensor list.** With Windows Hello available, `getAvailableBiometrics` reports `["strong"]` even on a PIN-only device: `UserConsentVerifier` gives one answer for the device and cannot say which sensors back it. An app must not render 'fingerprint or face available' from it.
-- **NSH 0.4.0's web runtime has no `lifecycle` accessor.** A TS import of `lifecycle` from `"nsh"` stays `undefined` there, so `useBiometricAvailability` treats it as active: the first check runs, the foreground re-check does not. An NSH release with the accessor restores it.
 
 ## The crates it reuses, and why
 
@@ -119,8 +145,8 @@ CI runs on every push to `master` and on pull requests. Every job runs on GitHub
 - **Rust** on Linux, macOS and Windows: Clippy with `-D warnings` over all targets, then the test suite. The tests use the fake backend and NSH's headless engine.
 - **Cross-check** for iOS, the iOS simulator, Android and wasm: Clippy for each target, which compiles each platform's code.
 - **TypeScript**: `nsh check`, `nsh build` with no warnings, and `nsh test` for the package.
-- **Demo**, on `master` only: `examples/demo` is packaged for macOS, Linux and Windows, each on both x86_64 and arm64, plus the iOS simulator, Android and the web, and the `latest` release is replaced with those builds.
-- **Pages**, on `master` only: the demo's web build is deployed to GitHub Pages, from the same artifact the release takes.
+- **Demo**, on `master` only: NSH 0.5.1 is installed with its official installer, `examples/demo` is packaged for macOS, Linux and Windows, each on both x86_64 and arm64, plus the iOS simulator, Android and the web, and the `latest` release is replaced with those nine builds (the downloads in [Try the demo](#try-the-demo)).
+- **Pages**, on `master` only: the demo's web build is deployed to GitHub Pages at https://supernsh.github.io/biometrics/, from the same artifact the release takes.
 
 CI does **not**:
 

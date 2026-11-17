@@ -4,5 +4,10 @@
   "version": "0.1.0",
   "build": 1,
   "rust": "../../crates/nsh-biometrics",
-  "capabilities": {}
+  "capabilities": {},
+  "ios": {
+    "infoPlist": {
+      "NSFaceIDUsageDescription": "The demo asks for Face ID to show how the biometric prompt works."
+    }
+  }
 }

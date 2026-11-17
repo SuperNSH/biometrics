@@ -64,7 +64,7 @@ The library adds three codes Flutter does not have: `ERR_BIOMETRICS_INVALID_ARGU
 
 | Feature | Here | Status | Covered by |
 |---|---|---|---|
-| Apple: Face ID, Touch ID and the passcode through `LAContext` | the prompt, `platform/robius.rs` | Done, but Face ID needs `NSFaceIDUsageDescription`, which NSH 0.4.0 cannot write (see `docs/decisions.md`) | Platform only |
+| Apple: Face ID, Touch ID and the passcode through `LAContext` | the prompt, `platform/robius.rs` | Done. Face ID needs `NSFaceIDUsageDescription`, which the app sets under `ios.infoPlist` (see `docs/decisions.md`) | Platform only |
 | Apple: `companion` (Apple Watch) and `wrist_detection` | `companion(false)`; wrist detection not set | Not used. The watch prompt is not offered | none |
 | Android: `BiometricPrompt`, API 28+ | the prompt, `platform/robius.rs` | Done | Platform only |
 | Android: the device-credential fallback, API 29+ | `password` set from `biometric_only` | Done. On API 28 the credential fallback is off, as robius does | Platform only |
