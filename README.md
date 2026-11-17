@@ -107,7 +107,7 @@ Limits:
 - [`zbus`](https://crates.io/crates/zbus) 6.2.1 and [`zbus_polkit`](https://crates.io/crates/zbus_polkit) 6.0.0 make the polkit and fprintd queries over D-Bus.
 - [`tokio`](https://crates.io/crates/tokio), with its `sync` and `time` features, provides the one-shot channel that resolves a call and the timer behind `timeout`.
 - [`thiserror`](https://crates.io/crates/thiserror) 2.0.21 derives the error's `Display`.
-- `nsh-core`, `nsh-engine` and `nsh-testing` 0.5.0 provide NSH's reactivity, `#[native_module]` and the headless test driver.
+- `nsh-core`, `nsh-engine` and `nsh-testing` 0.5.1 provide NSH's reactivity, `#[native_module]` and the headless test driver.
 
 Flutter's `local_auth` set the API, and `tauri-plugin-biometry` was the reference for each platform's availability check. `nsh-secure-storage` set the layout, the error codes and the CI.
 
