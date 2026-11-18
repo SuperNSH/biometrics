@@ -78,3 +78,7 @@ The library adds three codes Flutter does not have: `ERR_BIOMETRICS_INVALID_ARGU
 | `Error` variants | `map_error` | Done. Every variant maps to a code | `each_robius_error_maps_to_one_code`; `a_failed_match_is_an_answer_and_a_pass_is_true` |
 | `Context::authenticate` callback | one answer, through `done` | Done. Taken once, under a mutex | `a_call_resolves_once_with_the_system_answer` |
 | Cancel a prompt | not offered by robius | Missing. See `stopAuthentication` | `dropping_the_call_cancels_the_prompt` (the library side) |
+
+## Verification
+
+Checked against CI on `master`, run 44381139949 (https://github.com/SuperNSH/biometrics/actions/runs/44381139949), which includes the NSH 0.6.0 move: format, `rust` on Linux, macOS and Windows, the iOS, iOS simulator, Android and wasm cross-checks, `typescript`, and all nine `demo` builds passed, and `publish the latest build` replaced the `latest` release. The rows marked "Platform only" were not exercised on a device: CI has no sensor and shows no system prompt. Android's `USE_BIOMETRIC` permission cannot be declared with NSH 0.6.0 (its Android manifest generator in `nsh-cli` emits only `INTERNET`, `POST_NOTIFICATIONS`, `RECORD_AUDIO` and `CAMERA`).
