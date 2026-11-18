@@ -91,7 +91,7 @@ function App() {
 mount(App);
 ```
 
-**iOS needs `NSFaceIDUsageDescription` in `Info.plist` before an app uses Face ID.** Apple ends an iOS app that asks for Face ID without it; Touch ID and the passcode do not need it. NSH 0.5 writes the app's own `Info.plist` keys from `ios.infoPlist` in `nsh.json`, as `examples/demo/nsh.json` does:
+**iOS needs `NSFaceIDUsageDescription` in `Info.plist` before an app uses Face ID.** Apple ends an iOS app that asks for Face ID without it; Touch ID and the passcode do not need it. NSH writes the app's own `Info.plist` keys from `ios.infoPlist` in `nsh.json`, as `examples/demo/nsh.json` does:
 
 ```json
 {
