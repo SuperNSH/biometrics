@@ -72,7 +72,7 @@ The prompt start runs on the engine thread, unlike the availability queries, whi
 
 ### USE_BIOMETRIC is not declared, and this library cannot declare it
 
-`android.permission.USE_BIOMETRIC` must be in the app's manifest. NSH writes the manifest itself (checked again on 0.5.1). It declares `INTERNET`, `POST_NOTIFICATIONS` when the app has the `notifications` capability, and `RECORD_AUDIO` and `CAMERA` for web pages that capture media, and no setting adds other permissions (`crates/nsh-cli/src/android.rs`). So an NSH app cannot get the permission from `nsh.json` today. Until NSH offers a way, a prompt on Android fails with the framework's `SecurityException`, which robius reports as `ERR_BIOMETRICS_BACKEND`. This is a gap in NSH, and the README says so.
+`android.permission.USE_BIOMETRIC` must be in the app's manifest. NSH writes the manifest itself (checked again on 0.6.0). It declares `INTERNET`, `POST_NOTIFICATIONS` when the app has the `notifications` capability, and `RECORD_AUDIO` and `CAMERA` for web pages that capture media, and no setting adds other permissions (`crates/nsh-cli/src/android.rs`). So an NSH app cannot get the permission from `nsh.json` today. Until NSH offers a way, a prompt on Android fails with the framework's `SecurityException`, which robius reports as `ERR_BIOMETRICS_BACKEND`. This is a gap in NSH, and the README says so.
 
 ## Windows: the blocking call uses windows-future's `join`
 
