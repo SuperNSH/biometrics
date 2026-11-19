@@ -14,7 +14,7 @@ You are building `nsh-biometrics` in `~/fo/nsh-biometrics`, remote `SuperNSH/bio
 
 Researched on 2026-11-07:
 
-- **NSH has nothing for this**, in 0.4.0 or on `main`.
+- **NSH has nothing for this**, in 0.4.0, on `main`, or in 0.6.0 (no biometric or local-authentication code in `nsh-core` or any platform crate of the v0.6.0 source).
 - **`robius-authentication` 0.3.1** (Project Robius, Rust) prompts on Apple (LocalAuthentication: Face ID, Touch ID, password), Android (`android.hardware.biometrics.BiometricPrompt`, API 28+, with a Java callback it compiles to dex in `build.rs` and loads with `InMemoryDexClassLoader`), Windows (Windows Hello, with a fallback), and Linux (polkit, which its README calls incomplete). It reaches Android through `robius-android-env`, which reads `ndk-context`. **Use it for the prompt.** Do not rewrite what it does.
 - What it lacks, which you write: an availability query (is it supported, is anything enrolled, which kinds), NSH's Android set-up, NSH-style reactive state, TSX support, coded errors in our scheme, and fakes for tests.
 - Flutter's `local_auth` is the API to follow: `canCheckBiometrics`, `isDeviceSupported`, `getAvailableBiometrics`, `authenticate({ localizedReason, options: { biometricOnly, sensitiveTransaction, stickyAuth, useErrorDialogs } })`, `stopAuthentication`. Read its Dart API on pub.dev or its repo, `flutter/packages`, `packages/local_auth`, for behavior.

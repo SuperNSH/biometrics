@@ -27,7 +27,7 @@ export interface UseBiometricAvailabilityOptions {
   auth?: LocalAuth;
 }
 
-// NSH 0.4.0's web runtime shipped no `lifecycle` accessor, so the import stayed `undefined` there; 0.5 has it.
+// NSH 0.4.0's web runtime shipped no `lifecycle` accessor, so the import stayed `undefined` there; 0.5 and 0.6.0 have it.
 // A runtime without it counts as active, so the first read still runs.
 function lifecycleState(): "active" | "inactive" | "background" {
   return typeof lifecycle === "function" ? lifecycle() : "active";

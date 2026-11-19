@@ -48,7 +48,7 @@ robius's `Timeout` maps to `ERR_BIOMETRICS_TIMEOUT`, the code the opt-in `timeou
 
 ## The web read treats a missing `lifecycle` as active
 
-NSH 0.4.0's web runtime shipped no `lifecycle` accessor, so a TS import of `lifecycle` from `"nsh"` stayed `undefined` there and the packaged web app crashed at mount. NSH 0.5's web runtime exports it from `"nsh"` and follows the page's visibility, so the foreground re-check runs on the web too. The TypeScript read still treats a missing `lifecycle` as `"active"`, which costs nothing and keeps an older runtime from crashing. The Rust read reads the engine's own lifecycle.
+NSH 0.4.0's web runtime shipped no `lifecycle` accessor, so a TS import of `lifecycle` from `"nsh"` stayed `undefined` there and the packaged web app crashed at mount. NSH 0.5's and 0.6.0's web runtime export it from `"nsh"` (`nsh-platform-web/web/nsh.js` in v0.6.0) and follow the page's visibility, so the foreground re-check runs on the web too. The TypeScript read still treats a missing `lifecycle` as `"active"`, which costs nothing and keeps an older runtime from crashing. The Rust read reads the engine's own lifecycle.
 
 ## Apple availability through LAContext, not robius
 
@@ -104,7 +104,7 @@ The `wasm-bindgen`, `wasm-bindgen-futures` and `js-sys` dependencies are gone wi
 
 ## iOS needs an Info.plist key, and the app sets it
 
-Apple requires `NSFaceIDUsageDescription` for Face ID. NSH 0.4.0 rejected an `ios` key in `nsh.json`; NSH 0.5 takes `ios.infoPlist` and writes its keys into the package's `Info.plist`. The demo sets the key there. A library cannot write an app's `Info.plist` itself, so each app adds its own wording.
+Apple requires `NSFaceIDUsageDescription` for Face ID. NSH 0.4.0 rejected an `ios` key in `nsh.json`; NSH 0.5 and 0.6.0 take `ios.infoPlist` (`nsh-cli/src/package.rs`) and write its keys into the package's `Info.plist`. The demo sets the key there. A library cannot write an app's `Info.plist` itself, so each app adds its own wording.
 
 ## Options a platform cannot apply are accepted
 
