@@ -6,6 +6,8 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
+readme = "../../README.md"
+keywords = ["nshm", "nsh", "biometrics", "authentication", "face-id"]
 
 [lib]
 name = "nsh_biometrics"

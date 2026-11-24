@@ -11,6 +11,18 @@ What it does:
 
 `docs/parity.md` lists every `local_auth` name and what it does here. `docs/decisions.md` says why each choice was made.
 
+## Install
+
+In the app's directory:
+
+```sh
+nsh add nsh-biometrics
+```
+
+`nsh add` needs NSH main or the nightly: the 0.6.0 and 0.6.1 releases do not have it. In a Rust app, `cargo add nsh-biometrics` works with any of them.
+
+The TSX imports are `nsh-biometrics`, `nsh-biometrics/rust` and `nsh-biometrics/memory`.
+
 ## Try the demo
 
 The demo in `examples/demo` shows what the device reports and a button that authenticates. Open it on the web at https://supernsh.github.io/biometrics/ (the web is an unsupported target, so it reports nothing available), or download a build of the latest `master`:
@@ -36,7 +48,7 @@ Add the crate to `Cargo.toml`:
 
 ```toml
 [dependencies]
-nsh-biometrics = { git = "https://github.com/SuperNSH/biometrics" }
+nsh-biometrics = "0.1"
 ```
 
 ```rust
@@ -56,7 +68,7 @@ For a reactive screen, read availability with `use_biometric_availability()` ins
 
 ## Install and use it in TSX
 
-List the crate under `"rust"` in the app's `nsh.json`, and add the TypeScript package from `packages/nsh-biometrics` to the app:
+After `nsh add nsh-biometrics`, import as below. From a checkout instead, without `nsh add`, list the crate under `"rust"` in the app's `nsh.json`, and add the TypeScript package from `packages/nsh-biometrics` to the app:
 
 ```json
 {

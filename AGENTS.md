@@ -10,3 +10,7 @@ Hard rules for humans and coding agents in this repo.
 - Keep the Rust and TypeScript versions' semantics the same. A behavior change lands in both, with a test in both.
 - An authentication call resolves exactly once: success, a coded failure, or a cancel. It never hangs.
 - The main branch is `master`.
+
+## Releasing
+
+Bump the version in `Cargo.toml` and `packages/*/package.json` together, add the CHANGELOG entry, push, then tag `vX.Y.Z`. The Publish crates workflow uploads to crates.io once CI has passed on the tagged commit. A crates.io version cannot be replaced, so push the tag only when the release is final. To retry: `gh workflow run publish.yml -f tag=vX.Y.Z`.
