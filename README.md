@@ -19,7 +19,7 @@ In the app's directory:
 nsh add nsh-biometrics
 ```
 
-`nsh add` needs NSH main or the nightly: the 0.6.0 and 0.6.1 releases do not have it. In a Rust app, `cargo add nsh-biometrics` works with any of them.
+`nsh add` needs NSH 0.7.0 or later: the 0.6.x releases do not have it. In a Rust app, `cargo add nsh-biometrics` works with any of them.
 
 The TSX imports are `nsh-biometrics`, `nsh-biometrics/rust` and `nsh-biometrics/memory`.
 
@@ -129,7 +129,7 @@ Limits:
 
 - **Cancel does not dismiss the system prompt.** robius-authentication has no cancel. `stopAuthentication` and a dropped call resolve at once with `ERR_BIOMETRICS_CANCELLED`, but the system prompt stays until the user answers it. A new call gets `ERR_BIOMETRICS_IN_PROGRESS` until then. A `timeout` is the one exception: it force-frees the gate.
 - **A `timeout` frees the gate but not the screen.** `timeout` on `AuthOptions` (`timeoutMs` in TSX) resolves the call with `ERR_BIOMETRICS_TIMEOUT` when the duration passes, and the gate frees for the next call. The first prompt is still on screen, so a newer prompt can stack over it. That trade is why it is off by default.
-- **Android needs the permission, and NSH cannot add it.** `android.permission.USE_BIOMETRIC` must be in the generated manifest. NSH 0.6.0 declares only `INTERNET`, plus `POST_NOTIFICATIONS`, `RECORD_AUDIO` and `CAMERA` for the capabilities that need them, and no setting adds other permissions. Until NSH offers one, a prompt on Android fails with `ERR_BIOMETRICS_BACKEND`.
+- **Android needs the permission, which the app declares.** `android.permission.USE_BIOMETRIC` must be in the generated manifest. NSH 0.7.1 declares `INTERNET` and `ACCESS_NETWORK_STATE`, plus `POST_NOTIFICATIONS`, `RECORD_AUDIO` and `CAMERA` for the capabilities that need them; `android.permissions` in `nsh.json` adds the rest. The demo does not set it yet, so a prompt on Android fails with `ERR_BIOMETRICS_BACKEND` until an app does.
 - **iOS Face ID needs an `Info.plist` key, which the app sets.** `NSFaceIDUsageDescription` goes under `ios.infoPlist` in `nsh.json`; see the TSX section above.
 - **Some options are accepted and not applied.** `sensitiveTransaction`, `stickyAuth`, the Android negative button, and Apple's fallback and cancel titles. `docs/parity.md` lists them.
 - **Permanent lockout is reported as a lockout.** `ERR_BIOMETRICS_PERMANENTLY_LOCKED_OUT` exists, but robius-authentication does not report that state separately.
@@ -145,7 +145,7 @@ Limits:
 - [`zbus`](https://crates.io/crates/zbus) 6.2.1 and [`zbus_polkit`](https://crates.io/crates/zbus_polkit) 6.0.0 make the polkit and fprintd queries over D-Bus.
 - [`tokio`](https://crates.io/crates/tokio), with its `sync` and `time` features, provides the one-shot channel that resolves a call and the timer behind `timeout`.
 - [`thiserror`](https://crates.io/crates/thiserror) 2.0.21 derives the error's `Display`.
-- `nsh-core`, `nsh-engine` and `nsh-testing` 0.6.0 provide NSH's reactivity, `#[native_module]` and the headless test driver.
+- `nsh-core`, `nsh-engine` and `nsh-testing` 0.7.0 provide NSH's reactivity, `#[native_module]` and the headless test driver.
 
 Flutter's `local_auth` set the API, and `tauri-plugin-biometry` was the reference for each platform's availability check. `nsh-secure-storage` set the layout, the error codes and the CI.
 
@@ -157,7 +157,7 @@ CI runs on every push to `master` and on pull requests. Every job runs on GitHub
 - **Rust** on Linux, macOS and Windows: Clippy with `-D warnings` over all targets, then the test suite. The tests use the fake backend and NSH's headless engine.
 - **Cross-check** for iOS, the iOS simulator, Android and wasm: Clippy for each target, which compiles each platform's code.
 - **TypeScript**: `nsh check`, `nsh build` with no warnings, and `nsh test` for the package.
-- **Demo**, on `master` only: NSH 0.6.0 is installed with its official installer, `examples/demo` is packaged for macOS, Linux and Windows, each on both x86_64 and arm64, plus the iOS simulator, Android and the web, and the `latest` release is replaced with those nine builds (the downloads in [Try the demo](#try-the-demo)).
+- **Demo**, on `master` only: NSH 0.7.1 is installed with its official installer, `examples/demo` is packaged for macOS, Linux and Windows, each on both x86_64 and arm64, plus the iOS simulator, Android and the web, and the `latest` release is replaced with those nine builds (the downloads in [Try the demo](#try-the-demo)).
 - **Pages**, on `master` only: the demo's web build is deployed to GitHub Pages at https://supernsh.github.io/biometrics/, from the same artifact the release takes.
 
 CI does **not**:

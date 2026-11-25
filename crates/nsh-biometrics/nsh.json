@@ -1,5 +1,5 @@
 {
-  "nsh": ">=0.6",
+  "nsh": ">=0.7",
   "exports": {
     "nsh-biometrics": "tsx/index.ts",
     "nsh-biometrics/rust": "tsx/rust.ts",
